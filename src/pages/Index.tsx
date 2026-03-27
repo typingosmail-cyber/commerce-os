@@ -31,9 +31,8 @@ export default function Index() {
             <Button variant="ghost" onClick={() => navigate("/supplier/onboarding")}>
               <Building2 className="h-4 w-4 mr-1" /> I'm a Supplier
             </Button>
-            <Button variant="outline" disabled>
+            <Button variant="outline" onClick={() => navigate("/buyer/dashboard")}>
               <ShoppingCart className="h-4 w-4 mr-1" /> I'm a Buyer
-              <Badge variant="secondary" className="ml-2 text-[10px]">Soon</Badge>
             </Button>
           </div>
         </div>
@@ -53,7 +52,10 @@ export default function Index() {
         </p>
         <div className="flex gap-3 justify-center mt-8">
           <Button size="lg" onClick={() => navigate("/supplier/onboarding")}>
-            Start Supplier Onboarding <ArrowRight className="h-4 w-4 ml-2" />
+            Start as Supplier <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+          <Button size="lg" variant="outline" onClick={() => navigate("/buyer/dashboard")}>
+            Start as Buyer <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         </div>
       </section>
