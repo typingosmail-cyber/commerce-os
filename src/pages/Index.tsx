@@ -52,7 +52,10 @@ export default function Index() {
         </p>
         <div className="flex gap-3 justify-center mt-8">
           <Button size="lg" onClick={() => navigate("/supplier/onboarding")}>
-            Start Supplier Onboarding <ArrowRight className="h-4 w-4 ml-2" />
+            Start as Supplier <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+          <Button size="lg" variant="outline" onClick={() => navigate("/buyer/dashboard")}>
+            Start as Buyer <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         </div>
       </section>
