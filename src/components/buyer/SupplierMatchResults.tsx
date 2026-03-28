@@ -143,7 +143,7 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
 
       {/* All matches */}
       <div className="space-y-2">
-        {matches.map((m, i) => (
+        {filtered.map((m, i) => (
           <Card key={m.supplierId} className={`transition-all ${i === 0 ? "opacity-60" : ""}`}>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
