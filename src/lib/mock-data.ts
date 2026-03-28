@@ -1,4 +1,4 @@
-import { GSTInfo, TrustScore, CatalogProduct, RFQ, RFQResponse, Order, BuyerData } from "./types";
+import { GSTInfo, TrustScore, CatalogProduct, RFQ, RFQResponse, Order, BuyerData, SupplierProfile, CategoryGroup, Message, Inquiry } from "./types";
 
 export const MOCK_GST_DATA: Record<string, GSTInfo> = {
   "27AABCU9603R1ZM": {
@@ -50,6 +50,151 @@ export function saveSupplierToStorage(data: unknown) {
   localStorage.setItem("vyapar_supplier", JSON.stringify(data));
 }
 
+// Category groups (IndiaMart-style)
+export const CATEGORY_GROUPS: CategoryGroup[] = [
+  {
+    name: "Building & Construction",
+    icon: "building",
+    categories: [
+      { name: "Cement & Concrete", productCount: 1240, image: "🏗️" },
+      { name: "Steel & TMT Bars", productCount: 890, image: "🔩" },
+      { name: "Pipes & Fittings", productCount: 1560, image: "🔧" },
+      { name: "Electrical Wiring", productCount: 720, image: "⚡" },
+      { name: "Paints & Coatings", productCount: 430, image: "🎨" },
+      { name: "Construction Machines", productCount: 310, image: "🚜" },
+    ],
+  },
+  {
+    name: "Industrial Machinery",
+    icon: "cog",
+    categories: [
+      { name: "CNC Machines", productCount: 520, image: "⚙️" },
+      { name: "Hydraulic Equipment", productCount: 340, image: "🔨" },
+      { name: "Compressors", productCount: 280, image: "💨" },
+      { name: "Welding Machines", productCount: 190, image: "🔥" },
+      { name: "Pumps & Motors", productCount: 670, image: "🔄" },
+      { name: "Conveyor Systems", productCount: 150, image: "📦" },
+    ],
+  },
+  {
+    name: "Electronics & Electrical",
+    icon: "zap",
+    categories: [
+      { name: "Cables & Wires", productCount: 890, image: "🔌" },
+      { name: "Switches & Sockets", productCount: 560, image: "💡" },
+      { name: "Transformers", productCount: 230, image: "⚡" },
+      { name: "Circuit Breakers", productCount: 410, image: "🔋" },
+      { name: "LED Lighting", productCount: 780, image: "💡" },
+      { name: "Solar Panels", productCount: 320, image: "☀️" },
+    ],
+  },
+  {
+    name: "Chemicals & Solvents",
+    icon: "flask",
+    categories: [
+      { name: "Industrial Chemicals", productCount: 1100, image: "🧪" },
+      { name: "Adhesives & Sealants", productCount: 340, image: "🧴" },
+      { name: "Lubricants & Oils", productCount: 280, image: "🛢️" },
+      { name: "Cleaning Agents", productCount: 190, image: "🧹" },
+      { name: "Specialty Chemicals", productCount: 420, image: "⚗️" },
+      { name: "Water Treatment", productCount: 260, image: "💧" },
+    ],
+  },
+  {
+    name: "Packaging & Printing",
+    icon: "package",
+    categories: [
+      { name: "Corrugated Boxes", productCount: 670, image: "📦" },
+      { name: "Plastic Bags & Films", productCount: 890, image: "🛍️" },
+      { name: "Labels & Stickers", productCount: 340, image: "🏷️" },
+      { name: "Stretch Wraps", productCount: 180, image: "📋" },
+      { name: "Printing Machines", productCount: 210, image: "🖨️" },
+      { name: "Bottles & Containers", productCount: 520, image: "🧴" },
+    ],
+  },
+  {
+    name: "Safety & Protection",
+    icon: "shield",
+    categories: [
+      { name: "Safety Helmets", productCount: 320, image: "⛑️" },
+      { name: "Safety Shoes", productCount: 450, image: "👟" },
+      { name: "Gloves & Masks", productCount: 680, image: "🧤" },
+      { name: "Fire Safety", productCount: 290, image: "🧯" },
+      { name: "Safety Nets", productCount: 160, image: "🥅" },
+      { name: "CCTV & Security", productCount: 530, image: "📹" },
+    ],
+  },
+];
+
+// Supplier profiles for storefront pages
+export const MOCK_SUPPLIERS: SupplierProfile[] = [
+  {
+    id: "s1", name: "Rajesh Fasteners Pvt Ltd", gstin: "03AABCR1234F1Z1",
+    industry: "Manufacturing", subIndustry: "Fasteners",
+    city: "Ludhiana", state: "Punjab",
+    yearEstablished: "1998", employeeCount: "50-100",
+    annualRevenue: "₹5-10 Cr", description: "Leading manufacturer of SS and MS fasteners with 25+ years of experience. ISO 9001:2015 certified.",
+    contactEmail: "sales@rajeshfasteners.com", contactPhone: "+91-98765-43210",
+    website: "www.rajeshfasteners.com", responseRate: 92, responseTime: "Within 4 hours",
+    trustScore: { overall: 780, delivery: 82, quality: 85, responseTime: 78, compliance: 75, transactionHistory: 70 },
+    products: ["SS304 Hex Bolts M8x40", "MS Hex Nuts M10", "Spring Washers", "Anchor Bolts"],
+    certifications: ["ISO 9001:2015", "BIS Certified"],
+    memberSince: "2019-03-15",
+  },
+  {
+    id: "s2", name: "National Engineering Co", gstin: "24AABCN5678G1Z2",
+    industry: "Manufacturing", subIndustry: "Bearings",
+    city: "Jamnagar", state: "Gujarat",
+    yearEstablished: "1985", employeeCount: "100-200",
+    annualRevenue: "₹10-25 Cr", description: "Premium bearing manufacturer supplying to automotive and industrial sectors across India.",
+    contactEmail: "info@nationalengg.com", contactPhone: "+91-99876-54321",
+    website: "www.nationalengg.com", responseRate: 96, responseTime: "Within 2 hours",
+    trustScore: { overall: 850, delivery: 90, quality: 92, responseTime: 88, compliance: 82, transactionHistory: 85 },
+    products: ["Industrial Bearing 6205-2RS", "Tapered Roller Bearing", "Needle Bearing", "Thrust Bearing"],
+    certifications: ["ISO 9001:2015", "ISO 14001:2015", "IATF 16949"],
+    memberSince: "2018-06-20",
+  },
+  {
+    id: "s3", name: "Tata Steel Distributors", gstin: "27AABCT9012H1Z3",
+    industry: "Metals & Mining", subIndustry: "Steel",
+    city: "Mumbai", state: "Maharashtra",
+    yearEstablished: "1970", employeeCount: "500+",
+    annualRevenue: "₹100+ Cr", description: "Authorized distributor of Tata Steel products. Largest network of steel distribution in Western India.",
+    contactEmail: "orders@tatasteeldist.com", contactPhone: "+91-22-6789-0123",
+    website: "www.tatasteeldist.com", responseRate: 98, responseTime: "Within 1 hour",
+    trustScore: { overall: 920, delivery: 95, quality: 96, responseTime: 92, compliance: 90, transactionHistory: 95 },
+    products: ["GI Pipes 1.5 inch", "TMT Bars Fe500D", "HR Coils", "CR Sheets", "Structural Steel"],
+    certifications: ["ISO 9001:2015", "ISO 14001:2015", "SA 8000"],
+    memberSince: "2017-01-10",
+  },
+  {
+    id: "s4", name: "Polycab Wires Ltd", gstin: "24AABCP3456I1Z4",
+    industry: "Electronics & Electrical", subIndustry: "Wires & Cables",
+    city: "Halol", state: "Gujarat",
+    yearEstablished: "1996", employeeCount: "200-500",
+    annualRevenue: "₹50-100 Cr", description: "India's leading wires and cables manufacturer with pan-India presence.",
+    contactEmail: "b2b@polycab.com", contactPhone: "+91-98765-12345",
+    website: "www.polycab.com", responseRate: 94, responseTime: "Within 3 hours",
+    trustScore: { overall: 890, delivery: 88, quality: 94, responseTime: 85, compliance: 92, transactionHistory: 88 },
+    products: ["PVC Insulated Copper Wire 2.5 sq mm", "XLPE Cable", "Armoured Cable", "Solar Cable"],
+    certifications: ["ISO 9001:2015", "BIS Certified", "NABL Accredited Lab"],
+    memberSince: "2018-09-05",
+  },
+  {
+    id: "s10", name: "Sandvik Coromant India", gstin: "27AABCS7890K1Z0",
+    industry: "Manufacturing", subIndustry: "Cutting Tools",
+    city: "Pune", state: "Maharashtra",
+    yearEstablished: "1962", employeeCount: "500+",
+    annualRevenue: "₹100+ Cr", description: "Global leader in metal cutting tools and tooling systems for manufacturing industry.",
+    contactEmail: "india@sandvik.com", contactPhone: "+91-20-2740-1234",
+    website: "www.sandvik.coromant.com", responseRate: 99, responseTime: "Within 1 hour",
+    trustScore: { overall: 960, delivery: 98, quality: 99, responseTime: 95, compliance: 95, transactionHistory: 97 },
+    products: ["Cutting Tool Insert CNMG 120408", "Milling Cutters", "Drilling Tools", "Boring Bars"],
+    certifications: ["ISO 9001:2015", "ISO 14001:2015", "OHSAS 18001"],
+    memberSince: "2017-07-01",
+  },
+];
+
 // Buyer mock data
 export const MOCK_CATALOG: CatalogProduct[] = [
   { id: "p1", name: "SS304 Hex Bolts M8x40", category: "Fasteners & Hardware", description: "High-grade stainless steel hex bolts, corrosion resistant", unit: "Piece", minOrderQty: 500, pricePerUnit: 12, specifications: "Material: SS304, Grade: A2-70, Thread: M8, Length: 40mm", inStock: true, leadTimeDays: 5, supplierId: "s1", supplierName: "Rajesh Fasteners Pvt Ltd", supplierScore: 780, supplierCity: "Ludhiana", supplierState: "Punjab" },
@@ -81,6 +226,49 @@ export const MOCK_ORDERS: Order[] = [
   { id: "ord3", productName: "Cutting Tool Inserts CNMG - 50 pcs", supplierName: "Sandvik Coromant India", supplierScore: 960, quantity: 50, unit: "Piece", pricePerUnit: 315, totalAmount: 15750, status: "confirmed", orderDate: "2026-03-25", expectedDelivery: "2026-04-01" },
 ];
 
+// Mock inquiries
+export const MOCK_INQUIRIES: Inquiry[] = [
+  {
+    id: "inq1",
+    productName: "SS304 Hex Bolts M8x40",
+    buyerName: "Acme Manufacturing",
+    buyerEmail: "purchase@acme.com",
+    buyerPhone: "+91-98765-00001",
+    quantity: 5000,
+    unit: "Piece",
+    message: "Need urgent delivery. Can you match ₹11/pc for bulk?",
+    supplierIds: ["s1"],
+    status: "pending",
+    createdAt: "2026-03-26T10:00:00Z",
+  },
+];
+
+// Mock messages
+export const MOCK_MESSAGES: Message[] = [
+  { id: "m1", conversationId: "conv1", senderId: "buyer1", senderName: "Acme Manufacturing", senderType: "buyer", text: "Hi, we need 5000 SS304 Hex Bolts M8x40. Can you offer a better price for bulk?", timestamp: "2026-03-26T10:00:00Z" },
+  { id: "m2", conversationId: "conv1", senderId: "s1", senderName: "Rajesh Fasteners Pvt Ltd", senderType: "supplier", text: "Hello! Yes, for 5000+ pieces we can offer ₹11.2/piece. Delivery in 5-7 days.", timestamp: "2026-03-26T10:15:00Z" },
+  { id: "m3", conversationId: "conv1", senderId: "buyer1", senderName: "Acme Manufacturing", senderType: "buyer", text: "That works. Can you share the test certificates and delivery timeline?", timestamp: "2026-03-26T10:30:00Z" },
+  { id: "m4", conversationId: "conv1", senderId: "s1", senderName: "Rajesh Fasteners Pvt Ltd", senderType: "supplier", text: "Sure! Attaching test certs. We can dispatch within 3 days of PO confirmation. 50% advance, 50% on delivery.", timestamp: "2026-03-26T11:00:00Z" },
+  { id: "m5", conversationId: "conv2", senderId: "buyer1", senderName: "Acme Manufacturing", senderType: "buyer", text: "We're looking for GI Pipes 1.5 inch, 200 meters. What's your best price?", timestamp: "2026-03-27T09:00:00Z" },
+  { id: "m6", conversationId: "conv2", senderId: "s3", senderName: "Tata Steel Distributors", senderType: "supplier", text: "For 200m we can offer ₹305/meter including delivery to Maharashtra. IS:1239 certified.", timestamp: "2026-03-27T09:20:00Z" },
+];
+
+export interface Conversation {
+  id: string;
+  participantId: string;
+  participantName: string;
+  participantType: "buyer" | "supplier";
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+  productContext?: string;
+}
+
+export const MOCK_CONVERSATIONS: Conversation[] = [
+  { id: "conv1", participantId: "s1", participantName: "Rajesh Fasteners Pvt Ltd", participantType: "supplier", lastMessage: "Sure! Attaching test certs. We can dispatch within 3 days...", lastMessageTime: "2026-03-26T11:00:00Z", unreadCount: 1, productContext: "SS304 Hex Bolts M8x40" },
+  { id: "conv2", participantId: "s3", participantName: "Tata Steel Distributors", participantType: "supplier", lastMessage: "For 200m we can offer ₹305/meter including delivery...", lastMessageTime: "2026-03-27T09:20:00Z", unreadCount: 0, productContext: "GI Pipes 1.5 inch" },
+];
+
 export function getBuyerFromStorage(): BuyerData {
   const data = localStorage.getItem("vyapar_buyer");
   return data ? JSON.parse(data) : { companyName: "Acme Manufacturing Ltd", rfqs: MOCK_RFQS, orders: MOCK_ORDERS };
@@ -88,4 +276,22 @@ export function getBuyerFromStorage(): BuyerData {
 
 export function saveBuyerToStorage(data: BuyerData) {
   localStorage.setItem("vyapar_buyer", JSON.stringify(data));
+}
+
+export function getMessagesFromStorage(): Message[] {
+  const data = localStorage.getItem("vyapar_messages");
+  return data ? JSON.parse(data) : MOCK_MESSAGES;
+}
+
+export function saveMessagesToStorage(messages: Message[]) {
+  localStorage.setItem("vyapar_messages", JSON.stringify(messages));
+}
+
+export function getInquiriesFromStorage(): Inquiry[] {
+  const data = localStorage.getItem("vyapar_inquiries");
+  return data ? JSON.parse(data) : MOCK_INQUIRIES;
+}
+
+export function saveInquiriesToStorage(inquiries: Inquiry[]) {
+  localStorage.setItem("vyapar_inquiries", JSON.stringify(inquiries));
 }

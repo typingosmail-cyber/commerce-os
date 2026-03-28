@@ -127,3 +127,66 @@ export interface BuyerData {
   rfqs: RFQ[];
   orders: Order[];
 }
+
+// Category browsing types
+export interface SubCategory {
+  name: string;
+  productCount: number;
+  image: string;
+}
+
+export interface CategoryGroup {
+  name: string;
+  icon: string;
+  categories: SubCategory[];
+}
+
+// Supplier storefront
+export interface SupplierProfile {
+  id: string;
+  name: string;
+  gstin: string;
+  industry: string;
+  subIndustry: string;
+  city: string;
+  state: string;
+  yearEstablished: string;
+  employeeCount: string;
+  annualRevenue: string;
+  description: string;
+  contactEmail: string;
+  contactPhone: string;
+  website: string;
+  responseRate: number;
+  responseTime: string;
+  trustScore: TrustScore;
+  products: string[];
+  certifications: string[];
+  memberSince: string;
+}
+
+// Messaging types
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderType: "buyer" | "supplier";
+  text: string;
+  timestamp: string;
+}
+
+// Inquiry / Get Best Price
+export interface Inquiry {
+  id: string;
+  productName: string;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  quantity: number;
+  unit: string;
+  message: string;
+  supplierIds: string[];
+  status: "pending" | "responded" | "closed";
+  createdAt: string;
+}
