@@ -10,7 +10,9 @@ import { RFQList } from "@/components/buyer/RFQList";
 import { OrderList } from "@/components/buyer/OrderList";
 import { getBuyerFromStorage, saveBuyerToStorage } from "@/lib/mock-data";
 import { BuyerData, CatalogProduct, RFQ, Order } from "@/lib/types";
-import { Search, FileText, Package, TrendingUp, ShoppingCart, ArrowLeft, LogOut } from "lucide-react";
+import { SupplierMatchResults } from "@/components/buyer/SupplierMatchResults";
+import { matchSuppliers, MatchedSupplier } from "@/lib/supplier-matching";
+import { Search, FileText, Package, TrendingUp, ShoppingCart, ArrowLeft, LogOut, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 export default function BuyerDashboard() {
