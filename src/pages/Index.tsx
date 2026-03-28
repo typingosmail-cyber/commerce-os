@@ -2,8 +2,10 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CATEGORY_GROUPS } from "@/lib/mock-data";
 import {
   Shield, Zap, Package, TrendingUp, ArrowRight, Building2, ShoppingCart,
+  Search, MessageCircle, Grid3X3, Cog,
 } from "lucide-react";
 
 const FEATURES = [
@@ -28,6 +30,12 @@ export default function Index() {
             <span className="font-display font-bold text-foreground text-xl">Vyapar OS</span>
           </div>
           <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/categories")}>
+              <Grid3X3 className="h-4 w-4 mr-1" /> Categories
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/messages")}>
+              <MessageCircle className="h-4 w-4 mr-1" /> Messages
+            </Button>
             <Button variant="ghost" onClick={() => navigate("/supplier/onboarding")}>
               <Building2 className="h-4 w-4 mr-1" /> I'm a Supplier
             </Button>
@@ -51,12 +59,37 @@ export default function Index() {
           Discover verified suppliers, negotiate with AI, transact securely, and build your business reputation — all in one platform.
         </p>
         <div className="flex gap-3 justify-center mt-8">
-          <Button size="lg" onClick={() => navigate("/supplier/onboarding")}>
-            Start as Supplier <ArrowRight className="h-4 w-4 ml-2" />
+          <Button size="lg" onClick={() => navigate("/categories")}>
+            <Search className="h-4 w-4 mr-2" /> Browse Products
           </Button>
-          <Button size="lg" variant="outline" onClick={() => navigate("/buyer/dashboard")}>
-            Start as Buyer <ArrowRight className="h-4 w-4 ml-2" />
+          <Button size="lg" variant="outline" onClick={() => navigate("/supplier/onboarding")}>
+            Start Selling <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
+        </div>
+      </section>
+
+      {/* Category Preview */}
+      <section className="container pb-16">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-display font-bold text-foreground">Browse by Category</h2>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/categories")}>
+            View All <ArrowRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {CATEGORY_GROUPS.slice(0, 6).map(group => (
+            <Card key={group.name} className="hover:shadow-md transition-shadow cursor-pointer group" onClick={() => navigate(`/categories?group=${group.name}`)}>
+              <CardContent className="p-4 text-center">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-2">
+                  <Cog className="h-5 w-5 text-primary" />
+                </div>
+                <h3 className="font-display font-medium text-foreground group-hover:text-primary transition-colors text-xs leading-tight">{group.name}</h3>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {group.categories.reduce((a, c) => a + c.productCount, 0).toLocaleString()} products
+                </p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </section>
 

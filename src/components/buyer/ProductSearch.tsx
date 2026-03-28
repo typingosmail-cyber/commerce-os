@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MOCK_CATALOG, PRODUCT_CATEGORIES } from "@/lib/mock-data";
 import { CatalogProduct } from "@/lib/types";
-import { Search, Package, MapPin, Shield, Clock, Filter, ShoppingCart } from "lucide-react";
+import { GetBestPriceModal } from "./GetBestPriceModal";
+import { Search, Package, MapPin, Shield, Clock, Filter, ShoppingCart, Sparkles, Store } from "lucide-react";
 
 interface Props {
   onCreateRFQ: (product: CatalogProduct) => void;
@@ -20,9 +22,11 @@ function ScoreBadge({ score }: { score: number }) {
 }
 
 export function ProductSearch({ onCreateRFQ }: Props) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [stockOnly, setStockOnly] = useState(false);
+  const [bestPriceProduct, setBestPriceProduct] = useState<CatalogProduct | null>(null);
 
   const filtered = MOCK_CATALOG.filter((p) => {
     const matchesQuery = !query || p.name.toLowerCase().includes(query.toLowerCase()) || p.supplierName.toLowerCase().includes(query.toLowerCase()) || p.description.toLowerCase().includes(query.toLowerCase());
@@ -80,29 +84,35 @@ export function ProductSearch({ onCreateRFQ }: Props) {
               </div>
 
               <div className="flex items-center justify-between mt-4 pt-3 border-t">
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Package className="h-3.5 w-3.5" />
+                <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors" onClick={() => navigate(`/supplier/${p.supplierId}`)}>
+                  <Store className="h-3.5 w-3.5" />
                   <span className="font-medium text-foreground">{p.supplierName}</span>
-                </div>
+                </button>
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <MapPin className="h-3 w-3" /> {p.supplierCity}
                 </span>
               </div>
 
               <div className="flex gap-2 mt-3">
-                <Button size="sm" className="flex-1" onClick={() => onCreateRFQ(p)}>
+                <Button size="sm" className="flex-1" onClick={() => setBestPriceProduct(p)}>
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Get Best Price
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => onCreateRFQ(p)}>
                   <ShoppingCart className="h-3.5 w-3.5 mr-1.5" /> Request Quote
                 </Button>
                 {p.inStock ? (
-                  <Badge className="bg-success/10 text-success border-success/20">In Stock</Badge>
+                  <Badge className="bg-success/10 text-success border-success/20 shrink-0">In Stock</Badge>
                 ) : (
-                  <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20">Out of Stock</Badge>
+                  <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 shrink-0">Out of Stock</Badge>
                 )}
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Get Best Price Modal */}
+      <GetBestPriceModal product={bestPriceProduct} open={!!bestPriceProduct} onClose={() => setBestPriceProduct(null)} />
     </div>
   );
 }
