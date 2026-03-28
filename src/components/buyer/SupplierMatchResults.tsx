@@ -77,7 +77,7 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
     );
   }
 
-  const top = matches[0];
+  
 
   return (
     <div className="space-y-4 animate-fade-in-up">
