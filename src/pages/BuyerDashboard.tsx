@@ -146,13 +146,25 @@ export default function BuyerDashboard() {
           <TabsContent value="rfqs" className="mt-6">
             {showRFQForm ? (
               <RFQForm prefill={rfqPrefill} onSubmit={handleSubmitRFQ} onCancel={() => { setShowRFQForm(false); setRfqPrefill(null); }} />
+            ) : matchResults ? (
+              <SupplierMatchResults matches={matchResults} onClose={() => setMatchResults(null)} />
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-display font-bold text-foreground">Your RFQs</h2>
-                  <Button onClick={() => setShowRFQForm(true)} size="sm">
-                    <FileText className="h-4 w-4 mr-1.5" /> New RFQ
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => {
+                      if (data.rfqs.length > 0) {
+                        const latest = data.rfqs[0];
+                        setMatchResults(matchSuppliers(latest));
+                      }
+                    }}>
+                      <Sparkles className="h-4 w-4 mr-1.5" /> Re-match
+                    </Button>
+                    <Button onClick={() => setShowRFQForm(true)} size="sm">
+                      <FileText className="h-4 w-4 mr-1.5" /> New RFQ
+                    </Button>
+                  </div>
                 </div>
                 <RFQList rfqs={data.rfqs} onSelect={() => {}} onAward={handleAwardRFQ} />
               </div>
