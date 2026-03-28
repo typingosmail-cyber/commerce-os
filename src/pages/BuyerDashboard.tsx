@@ -37,7 +37,10 @@ export default function BuyerDashboard() {
     setData((prev) => ({ ...prev, rfqs: [rfq, ...prev.rfqs] }));
     setShowRFQForm(false);
     setRfqPrefill(null);
-    toast({ title: "RFQ Sent!", description: "Your request has been sent to matched suppliers." });
+    // Run AI matching
+    const matches = matchSuppliers(rfq);
+    setMatchResults(matches);
+    toast({ title: "RFQ Sent!", description: `AI matched ${matches.length} suppliers for you.` });
   };
 
   const handleAwardRFQ = (rfqId: string, responseId: string) => {
