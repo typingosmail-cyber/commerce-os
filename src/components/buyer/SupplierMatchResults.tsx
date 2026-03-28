@@ -42,6 +42,19 @@ function BreakdownBar({ label, value, max, icon: Icon }: { label: string; value:
 export function SupplierMatchResults({ matches, onClose }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [animating, setAnimating] = useState(true);
+  const [sortBy, setSortBy] = useState<SortOption>("score");
+  const [stockOnly, setStockOnly] = useState(false);
+
+  const filtered = useMemo(() => {
+    let list = stockOnly ? matches.filter((m) => m.inStock) : [...matches];
+    switch (sortBy) {
+      case "price-asc": list.sort((a, b) => a.pricePerUnit - b.pricePerUnit); break;
+      case "price-desc": list.sort((a, b) => b.pricePerUnit - a.pricePerUnit); break;
+      case "delivery-asc": list.sort((a, b) => a.leadTimeDays - b.leadTimeDays); break;
+      default: list.sort((a, b) => b.matchScore - a.matchScore);
+    }
+    return list;
+  }, [matches, sortBy, stockOnly]);
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimating(false), 1500);
