@@ -90,8 +90,32 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
         <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
       </div>
 
+      {/* Filter & Sort Controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Filter className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">Filters</span>
+        </div>
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+          <SelectTrigger className="w-[160px] h-8 text-xs">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="score">Best Match</SelectItem>
+            <SelectItem value="price-asc">Price: Low → High</SelectItem>
+            <SelectItem value="price-desc">Price: High → Low</SelectItem>
+            <SelectItem value="delivery-asc">Fastest Delivery</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-1.5">
+          <Checkbox id="stock-filter" checked={stockOnly} onCheckedChange={(c) => setStockOnly(!!c)} />
+          <Label htmlFor="stock-filter" className="text-xs cursor-pointer">In Stock Only</Label>
+        </div>
+        <Badge variant="outline" className="text-xs ml-auto">{filtered.length} result{filtered.length !== 1 ? "s" : ""}</Badge>
+      </div>
+
       {/* Top recommendation */}
-      {top && (
+      {filtered[0] && (
         <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-transparent">
           <CardContent className="p-5">
             <div className="flex items-center gap-1.5 mb-3">
@@ -99,18 +123,18 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
               <span className="text-xs font-semibold text-primary uppercase tracking-wide">Top Recommendation</span>
             </div>
             <div className="flex items-center gap-4">
-              <ScoreRing score={top.matchScore} />
+              <ScoreRing score={filtered[0].matchScore} />
               <div className="flex-1 min-w-0">
-                <h3 className="font-display font-semibold text-foreground text-lg">{top.supplierName}</h3>
+                <h3 className="font-display font-semibold text-foreground text-lg">{filtered[0].supplierName}</h3>
                 <div className="flex flex-wrap gap-1.5 mt-1">
-                  {top.reasons.map((r) => (
+                  {filtered[0].reasons.map((r) => (
                     <Badge key={r} variant="secondary" className="text-xs">{r}</Badge>
                   ))}
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="font-display font-bold text-foreground">₹{top.pricePerUnit}/{top.unit}</p>
-                <p className="text-xs text-muted-foreground">{top.leadTimeDays}d delivery</p>
+                <p className="font-display font-bold text-foreground">₹{filtered[0].pricePerUnit}/{filtered[0].unit}</p>
+                <p className="text-xs text-muted-foreground">{filtered[0].leadTimeDays}d delivery</p>
               </div>
             </div>
           </CardContent>
