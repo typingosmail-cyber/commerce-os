@@ -1,11 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { MatchedSupplier } from "@/lib/supplier-matching";
-import { Sparkles, Shield, Clock, IndianRupee, Package, MapPin, ChevronDown, ChevronUp, Zap, TrendingUp } from "lucide-react";
+import { Sparkles, Shield, Clock, IndianRupee, Package, MapPin, ChevronDown, ChevronUp, Zap, TrendingUp, Filter } from "lucide-react";
+
+type SortOption = "score" | "price-asc" | "price-desc" | "delivery-asc";
 
 interface Props {
   matches: MatchedSupplier[];
@@ -37,6 +42,19 @@ function BreakdownBar({ label, value, max, icon: Icon }: { label: string; value:
 export function SupplierMatchResults({ matches, onClose }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [animating, setAnimating] = useState(true);
+  const [sortBy, setSortBy] = useState<SortOption>("score");
+  const [stockOnly, setStockOnly] = useState(false);
+
+  const filtered = useMemo(() => {
+    let list = stockOnly ? matches.filter((m) => m.inStock) : [...matches];
+    switch (sortBy) {
+      case "price-asc": list.sort((a, b) => a.pricePerUnit - b.pricePerUnit); break;
+      case "price-desc": list.sort((a, b) => b.pricePerUnit - a.pricePerUnit); break;
+      case "delivery-asc": list.sort((a, b) => a.leadTimeDays - b.leadTimeDays); break;
+      default: list.sort((a, b) => b.matchScore - a.matchScore);
+    }
+    return list;
+  }, [matches, sortBy, stockOnly]);
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimating(false), 1500);
@@ -59,7 +77,7 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
     );
   }
 
-  const top = matches[0];
+  
 
   return (
     <div className="space-y-4 animate-fade-in-up">
@@ -72,8 +90,32 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
         <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
       </div>
 
+      {/* Filter & Sort Controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Filter className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">Filters</span>
+        </div>
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+          <SelectTrigger className="w-[160px] h-8 text-xs">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="score">Best Match</SelectItem>
+            <SelectItem value="price-asc">Price: Low → High</SelectItem>
+            <SelectItem value="price-desc">Price: High → Low</SelectItem>
+            <SelectItem value="delivery-asc">Fastest Delivery</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-1.5">
+          <Checkbox id="stock-filter" checked={stockOnly} onCheckedChange={(c) => setStockOnly(!!c)} />
+          <Label htmlFor="stock-filter" className="text-xs cursor-pointer">In Stock Only</Label>
+        </div>
+        <Badge variant="outline" className="text-xs ml-auto">{filtered.length} result{filtered.length !== 1 ? "s" : ""}</Badge>
+      </div>
+
       {/* Top recommendation */}
-      {top && (
+      {filtered[0] && (
         <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-transparent">
           <CardContent className="p-5">
             <div className="flex items-center gap-1.5 mb-3">
@@ -81,18 +123,18 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
               <span className="text-xs font-semibold text-primary uppercase tracking-wide">Top Recommendation</span>
             </div>
             <div className="flex items-center gap-4">
-              <ScoreRing score={top.matchScore} />
+              <ScoreRing score={filtered[0].matchScore} />
               <div className="flex-1 min-w-0">
-                <h3 className="font-display font-semibold text-foreground text-lg">{top.supplierName}</h3>
+                <h3 className="font-display font-semibold text-foreground text-lg">{filtered[0].supplierName}</h3>
                 <div className="flex flex-wrap gap-1.5 mt-1">
-                  {top.reasons.map((r) => (
+                  {filtered[0].reasons.map((r) => (
                     <Badge key={r} variant="secondary" className="text-xs">{r}</Badge>
                   ))}
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="font-display font-bold text-foreground">₹{top.pricePerUnit}/{top.unit}</p>
-                <p className="text-xs text-muted-foreground">{top.leadTimeDays}d delivery</p>
+                <p className="font-display font-bold text-foreground">₹{filtered[0].pricePerUnit}/{filtered[0].unit}</p>
+                <p className="text-xs text-muted-foreground">{filtered[0].leadTimeDays}d delivery</p>
               </div>
             </div>
           </CardContent>
@@ -101,7 +143,7 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
 
       {/* All matches */}
       <div className="space-y-2">
-        {matches.map((m, i) => (
+        {filtered.map((m, i) => (
           <Card key={m.supplierId} className={`transition-all ${i === 0 ? "opacity-60" : ""}`}>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
