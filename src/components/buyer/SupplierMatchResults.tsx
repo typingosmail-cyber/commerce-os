@@ -1,11 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { MatchedSupplier } from "@/lib/supplier-matching";
-import { Sparkles, Shield, Clock, IndianRupee, Package, MapPin, ChevronDown, ChevronUp, Zap, TrendingUp } from "lucide-react";
+import { Sparkles, Shield, Clock, IndianRupee, Package, MapPin, ChevronDown, ChevronUp, Zap, TrendingUp, Filter } from "lucide-react";
+
+type SortOption = "score" | "price-asc" | "price-desc" | "delivery-asc";
 
 interface Props {
   matches: MatchedSupplier[];
