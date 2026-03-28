@@ -21,6 +21,7 @@ export default function BuyerDashboard() {
   const [tab, setTab] = useState("search");
   const [rfqPrefill, setRfqPrefill] = useState<CatalogProduct | null>(null);
   const [showRFQForm, setShowRFQForm] = useState(false);
+  const [matchResults, setMatchResults] = useState<MatchedSupplier[] | null>(null);
 
   useEffect(() => {
     saveBuyerToStorage(data);
