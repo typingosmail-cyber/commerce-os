@@ -215,8 +215,8 @@ export default function CategoryBrowse() {
                         onClick={() => navigate(`/categories?group=${group.name}&sub=${cat.name}`)}
                       >
                         <CardContent className="p-4 text-center">
-                          <div className="h-12 w-12 mx-auto rounded-lg bg-muted flex items-center justify-center mb-2 group-hover/card:bg-primary/10 transition-colors">
-                            <span className="text-2xl">{cat.image}</span>
+                          <div className="h-12 w-12 mx-auto rounded-lg overflow-hidden bg-muted flex items-center justify-center mb-2 group-hover/card:ring-2 group-hover/card:ring-primary/30 transition-all">
+                            <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" loading="lazy" />
                           </div>
                           <h3 className="font-display font-medium text-foreground group-hover/card:text-primary transition-colors text-xs leading-tight">{cat.name}</h3>
                           <div className="flex items-center justify-center gap-1 mt-1">
