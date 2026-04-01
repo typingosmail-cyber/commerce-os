@@ -55,6 +55,7 @@ export const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     name: "Building & Construction",
     icon: "building",
+    heroImage: "/categories/building-construction.jpg",
     categories: [
       { name: "Cement & Concrete", productCount: 1240, image: "🏗️" },
       { name: "Steel & TMT Bars", productCount: 890, image: "🔩" },
@@ -67,6 +68,7 @@ export const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     name: "Industrial Machinery",
     icon: "cog",
+    heroImage: "/categories/industrial-machinery.jpg",
     categories: [
       { name: "CNC Machines", productCount: 520, image: "⚙️" },
       { name: "Hydraulic Equipment", productCount: 340, image: "🔨" },
@@ -79,6 +81,7 @@ export const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     name: "Electronics & Electrical",
     icon: "zap",
+    heroImage: "/categories/electronics-electrical.jpg",
     categories: [
       { name: "Cables & Wires", productCount: 890, image: "🔌" },
       { name: "Switches & Sockets", productCount: 560, image: "💡" },
@@ -91,6 +94,7 @@ export const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     name: "Chemicals & Solvents",
     icon: "flask",
+    heroImage: "/categories/chemicals-solvents.jpg",
     categories: [
       { name: "Industrial Chemicals", productCount: 1100, image: "🧪" },
       { name: "Adhesives & Sealants", productCount: 340, image: "🧴" },
@@ -103,6 +107,7 @@ export const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     name: "Packaging & Printing",
     icon: "package",
+    heroImage: "/categories/packaging-printing.jpg",
     categories: [
       { name: "Corrugated Boxes", productCount: 670, image: "📦" },
       { name: "Plastic Bags & Films", productCount: 890, image: "🛍️" },
@@ -115,6 +120,7 @@ export const CATEGORY_GROUPS: CategoryGroup[] = [
   {
     name: "Safety & Protection",
     icon: "shield",
+    heroImage: "/categories/safety-protection.jpg",
     categories: [
       { name: "Safety Helmets", productCount: 320, image: "⛑️" },
       { name: "Safety Shoes", productCount: 450, image: "👟" },
