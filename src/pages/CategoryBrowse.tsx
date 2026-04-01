@@ -147,8 +147,8 @@ export default function CategoryBrowse() {
                     {group.categories.map(cat => (
                       <Card key={cat.name} className="hover:shadow-lg transition-all cursor-pointer group border-2 hover:border-primary/30" onClick={() => navigate(`/categories?group=${selectedGroup}&sub=${cat.name}`)}>
                         <CardContent className="p-5 text-center">
-                          <div className="h-16 w-16 mx-auto rounded-xl bg-primary/5 flex items-center justify-center mb-3 group-hover:bg-primary/10 transition-colors">
-                            <span className="text-3xl">{cat.image}</span>
+                        <div className="h-16 w-16 mx-auto rounded-xl overflow-hidden bg-muted flex items-center justify-center mb-3 group-hover:ring-2 group-hover:ring-primary/30 transition-all">
+                            <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" loading="lazy" />
                           </div>
                           <h3 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors text-sm">{cat.name}</h3>
                           <p className="text-xs text-muted-foreground mt-1">{cat.productCount.toLocaleString()} products</p>
