@@ -138,6 +138,7 @@ export interface SubCategory {
 export interface CategoryGroup {
   name: string;
   icon: string;
+  heroImage?: string;
   categories: SubCategory[];
 }
 
