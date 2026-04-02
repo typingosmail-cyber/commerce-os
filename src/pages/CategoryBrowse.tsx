@@ -30,7 +30,8 @@ export default function CategoryBrowse() {
   const selectedGroup = searchParams.get("group");
   const selectedSub = searchParams.get("sub");
   const viewMode = searchParams.get("view");
-  const [search, setSearch] = useState("");
+  const searchFromUrl = searchParams.get("search") || "";
+  const [search, setSearch] = useState(searchFromUrl);
 
   const filteredGroups = search
     ? CATEGORY_GROUPS.filter(
