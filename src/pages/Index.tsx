@@ -223,7 +223,7 @@ export default function Index() {
                       </div>
                     </div>
                     <Badge variant="outline" className="text-[10px] shrink-0">
-                      <Verified className="h-3 w-3 mr-0.5 text-green-600" /> GST Verified
+                      <Verified className="h-3 w-3 mr-0.5 text-success" /> GST Verified
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{supplier.description}</p>
