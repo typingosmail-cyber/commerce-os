@@ -321,7 +321,7 @@ export default function Index() {
                     <div className="text-right shrink-0">
                       <p className="font-semibold text-foreground text-sm">₹{product.pricePerUnit}/{product.unit}</p>
                       {product.inStock ? (
-                        <Badge variant="outline" className="text-[9px] text-green-600 border-green-200">In Stock</Badge>
+                        <Badge variant="outline" className="text-[9px] text-success border-success/30">In Stock</Badge>
                       ) : (
                         <Badge variant="outline" className="text-[9px] text-muted-foreground">Made to Order</Badge>
                       )}
