@@ -267,7 +267,7 @@ export default function Index() {
           {/* Recent buyer requirements */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
               <h2 className="text-xl font-bold text-foreground">Live Buyer Requirements</h2>
             </div>
             <div className="space-y-2">
