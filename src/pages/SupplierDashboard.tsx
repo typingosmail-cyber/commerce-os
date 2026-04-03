@@ -9,6 +9,8 @@ import { getSupplierFromStorage, saveSupplierToStorage } from "@/lib/mock-data";
 import {
   Building2, Package, ShoppingCart, TrendingUp, Eye, MessageSquare, LogOut,
 } from "lucide-react";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 
 export default function SupplierDashboard() {
   const navigate = useNavigate();
