@@ -14,6 +14,7 @@ import {
 
 const NAV_LINKS = [
   { label: "Categories", path: "/categories", icon: Grid3X3 },
+  { label: "Compare", path: "/compare", icon: Heart },
   { label: "Messages", path: "/messages", icon: MessageCircle },
 ];
 
