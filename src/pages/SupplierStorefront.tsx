@@ -51,25 +51,8 @@ export default function SupplierStorefront() {
   const scoreColor = supplier.trustScore.overall >= 800 ? "text-success" : supplier.trustScore.overall >= 600 ? "text-secondary" : "text-warning";
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <span className="font-display font-bold text-foreground">Supplier Profile</span>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate(`/messages?supplier=${id}`)}>
-              <MessageCircle className="h-4 w-4 mr-1" /> Contact
-            </Button>
-            <Button size="sm" onClick={() => navigate("/buyer/dashboard")}>
-              <ShoppingCart className="h-4 w-4 mr-1" /> Get Quote
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
 
       <main className="container py-8 space-y-6">
         {/* Hero */}
