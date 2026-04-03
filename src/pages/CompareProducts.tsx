@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { MOCK_CATALOG } from "@/lib/mock-data";
 import { getCompareList, clearCompare, toggleCompare } from "@/lib/wishlist";
 import {
-  GitCompareArrows, Trash2, Package, Star, MapPin, Clock,
+  GitCompareArrows, Trash2, Star, MapPin, Clock,
   CheckCircle2, XCircle, Trophy, ArrowLeft,
 } from "lucide-react";
 
