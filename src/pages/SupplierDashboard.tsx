@@ -40,23 +40,8 @@ export default function SupplierDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card sticky top-0 z-10">
-        <div className="container py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-display font-bold text-sm">V</span>
-            </div>
-            <div>
-              <h1 className="font-display font-bold text-foreground text-lg">Vyapar OS</h1>
-              <p className="text-xs text-muted-foreground">Supplier Dashboard</p>
-            </div>
-          </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-1" /> Reset Demo
-          </Button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
 
       <main className="container py-8 space-y-8">
         {/* Welcome */}
