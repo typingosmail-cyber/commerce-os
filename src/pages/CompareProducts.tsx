@@ -145,7 +145,7 @@ export default function CompareProducts() {
                 <CompareRow
                   label="Location"
                   values={products.map((p) => (
-                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <span key={p.id} className="flex items-center gap-1 text-sm text-muted-foreground">
                       <MapPin className="h-3.5 w-3.5" /> {p.supplierCity}, {p.supplierState}
                     </span>
                   ))}
