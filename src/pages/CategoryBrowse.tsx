@@ -206,7 +206,7 @@ export default function CategoryBrowse() {
                             className="w-full mt-3"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/buyer/dashboard`);
+                              navigate(`/product/${p.id}`);
                             }}
                           >
                             Get Best Price
