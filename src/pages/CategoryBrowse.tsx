@@ -191,7 +191,7 @@ export default function CategoryBrowse() {
                       <Card
                         key={p.id}
                         className="hover:shadow-md transition-shadow cursor-pointer"
-                        onClick={() => navigate(`/product/${p.id}`)}}
+                        onClick={() => navigate(`/product/${p.id}`)}
                       >
                         <CardContent className="p-5">
                           <Badge variant="outline" className="text-xs mb-2">{p.category}</Badge>
