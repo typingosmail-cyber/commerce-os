@@ -8,6 +8,8 @@ import { GSTInfo, BusinessProfile, Product, SupplierData } from "@/lib/types";
 import { DEFAULT_TRUST_SCORE, getSupplierFromStorage, saveSupplierToStorage } from "@/lib/mock-data";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 
 const STEPS = [
   { label: "GST Verification", description: "Verify business identity" },
