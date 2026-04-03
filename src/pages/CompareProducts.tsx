@@ -161,7 +161,7 @@ export default function CompareProducts() {
                 <CompareRow
                   label="Actions"
                   values={products.map((p) => (
-                    <div className="flex flex-col gap-2">
+                    <div key={p.id} className="flex flex-col gap-2">
                       <Button size="sm" className="w-full text-xs" onClick={() => navigate(`/product/${p.id}`)}>
                         Get Best Price
                       </Button>

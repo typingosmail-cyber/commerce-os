@@ -65,7 +65,7 @@ export default function ProductDetail() {
   const handleCompare = () => {
     const list = toggleCompare(product.id);
     setComparing(!comparing);
-    if (!comparing && list.length === comparing ? list.length : list.length) {
+    if (!comparing) {
       toast({ title: "Added to compare", description: `${list.length}/4 products selected` });
     }
   };

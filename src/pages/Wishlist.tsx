@@ -8,7 +8,7 @@ import { Footer } from "@/components/Footer";
 import { MOCK_CATALOG } from "@/lib/mock-data";
 import { getWishlist, toggleWishlist } from "@/lib/wishlist";
 import {
-  Heart, Package, Star, MapPin, Clock, Trash2, ShoppingCart, ArrowLeft,
+  Heart, Star, MapPin, Clock, Trash2, ShoppingCart, ArrowLeft,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
