@@ -125,7 +125,7 @@ export default function CompareProducts() {
                 <CompareRow
                   label="Supplier"
                   values={products.map((p) => (
-                    <button className="text-sm text-foreground hover:text-primary transition-colors text-left" onClick={() => navigate(`/supplier/${p.supplierId}`)}>
+                    <button key={p.id} className="text-sm text-foreground hover:text-primary transition-colors text-left" onClick={() => navigate(`/supplier/${p.supplierId}`)}>
                       {p.supplierName}
                     </button>
                   ))}
