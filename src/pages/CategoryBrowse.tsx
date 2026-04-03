@@ -116,7 +116,7 @@ export default function CategoryBrowse() {
                     <Card
                       key={p.id}
                       className="hover:shadow-lg transition-all cursor-pointer group border hover:border-primary/30 relative overflow-hidden"
-                      onClick={() => navigate(`/product/${p.id}`)}
+                        onClick={() => navigate(`/product/${p.id}`)}
                     >
                       {idx < 3 && (
                         <div className="absolute top-2 left-2 z-10">
