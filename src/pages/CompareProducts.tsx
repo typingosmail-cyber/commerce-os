@@ -106,7 +106,7 @@ export default function CompareProducts() {
                 <CompareRow
                   label="Lead Time"
                   values={products.map((p) => (
-                    <span className={`flex items-center gap-1 ${p.leadTimeDays === bestLead ? "text-success font-semibold" : "text-foreground"}`}>
+                    <span key={p.id} className={`flex items-center gap-1 ${p.leadTimeDays === bestLead ? "text-success font-semibold" : "text-foreground"}`}>
                       <Clock className="h-3.5 w-3.5" /> {p.leadTimeDays} days
                       {p.leadTimeDays === bestLead && <Trophy className="h-3.5 w-3.5 text-success" />}
                     </span>
