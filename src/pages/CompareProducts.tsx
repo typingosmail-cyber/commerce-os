@@ -116,9 +116,9 @@ export default function CompareProducts() {
                   label="Availability"
                   values={products.map((p) =>
                     p.inStock ? (
-                      <span className="flex items-center gap-1 text-success"><CheckCircle2 className="h-4 w-4" /> In Stock</span>
+                      <span key={p.id} className="flex items-center gap-1 text-success"><CheckCircle2 className="h-4 w-4" /> In Stock</span>
                     ) : (
-                      <span className="flex items-center gap-1 text-warning"><XCircle className="h-4 w-4" /> Made to Order</span>
+                      <span key={p.id} className="flex items-center gap-1 text-warning"><XCircle className="h-4 w-4" /> Made to Order</span>
                     )
                   )}
                 />
