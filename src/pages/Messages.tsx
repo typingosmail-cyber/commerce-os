@@ -10,6 +10,8 @@ import { MOCK_CONVERSATIONS, getMessagesFromStorage, saveMessagesToStorage, MOCK
 import type { Conversation } from "@/lib/mock-data";
 import { Message } from "@/lib/types";
 import { ArrowLeft, Send, MessageCircle, Package, Shield, User } from "lucide-react";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 
 export default function MessagesPage() {
   const navigate = useNavigate();
