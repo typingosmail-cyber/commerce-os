@@ -133,7 +133,7 @@ export default function CompareProducts() {
                 <CompareRow
                   label="Trust Score"
                   values={products.map((p) => (
-                    <span className="flex items-center gap-1">
+                    <span key={p.id} className="flex items-center gap-1">
                       <Star className={`h-3.5 w-3.5 fill-current ${p.supplierScore === bestScore ? "text-success" : "text-yellow-500"}`} />
                       <span className={p.supplierScore === bestScore ? "font-bold text-success" : "text-foreground"}>
                         {p.supplierScore}
