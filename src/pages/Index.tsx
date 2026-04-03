@@ -302,7 +302,7 @@ export default function Index() {
             </div>
             <div className="space-y-2">
               {MOCK_CATALOG.slice(0, 5).map((product, idx) => (
-                <Card key={product.id} className="hover:shadow-sm transition-shadow cursor-pointer" onClick={() => navigate("/buyer/dashboard")}>
+                <Card key={product.id} className="hover:shadow-sm transition-shadow cursor-pointer" onClick={() => navigate(`/product/${product.id}`)}>
                   <CardContent className="p-4 flex items-center gap-4">
                     <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-sm font-bold text-primary">
                       #{idx + 1}
