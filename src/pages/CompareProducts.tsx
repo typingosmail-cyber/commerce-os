@@ -93,7 +93,7 @@ export default function CompareProducts() {
                 <CompareRow
                   label="Price"
                   values={products.map((p) => (
-                    <span className="flex items-center gap-1">
+                    <span key={p.id} className="flex items-center gap-1">
                       <span className={`font-bold ${p.pricePerUnit === bestPrice ? "text-success" : "text-foreground"}`}>
                         ₹{p.pricePerUnit}
                       </span>
@@ -102,7 +102,7 @@ export default function CompareProducts() {
                     </span>
                   ))}
                 />
-                <CompareRow label="MOQ" values={products.map((p) => <span className="text-foreground">{p.minOrderQty} {p.unit}s</span>)} />
+                <CompareRow label="MOQ" values={products.map((p) => <span key={p.id} className="text-foreground">{p.minOrderQty} {p.unit}s</span>)} />
                 <CompareRow
                   label="Lead Time"
                   values={products.map((p) => (
