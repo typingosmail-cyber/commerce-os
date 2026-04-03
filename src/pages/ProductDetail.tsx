@@ -12,9 +12,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar,
 } from "recharts";
 import {
-  Shield, Star, MapPin, Clock, Package, Heart, GitCompareArrows,
-  TrendingUp, TrendingDown, Phone, MessageCircle, ArrowLeft,
-  CheckCircle2, AlertCircle, Truck, Award, Share2, Building,
+  Shield, MapPin, Package, Heart, GitCompareArrows,
+  TrendingUp, TrendingDown, Phone, MessageCircle,
+  CheckCircle2, AlertCircle, Award, Share2, Building,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
