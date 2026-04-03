@@ -158,7 +158,7 @@ export default function CategoryBrowse() {
                           className="w-full mt-3 h-8 text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/buyer/dashboard`);
+                            navigate(`/product/${p.id}`);
                           }}
                         >
                           Get Best Price
