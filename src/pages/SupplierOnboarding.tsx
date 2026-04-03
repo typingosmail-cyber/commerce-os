@@ -89,6 +89,7 @@ export default function SupplierOnboarding() {
           <ProductListing products={data.products} onComplete={handleProductsComplete} />
         )}
       </main>
+      <Footer />
     </div>
   );
 }

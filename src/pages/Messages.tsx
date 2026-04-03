@@ -190,6 +190,7 @@ export default function MessagesPage() {
           </Card>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

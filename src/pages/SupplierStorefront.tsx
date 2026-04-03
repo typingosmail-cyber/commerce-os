@@ -180,6 +180,7 @@ export default function SupplierStorefront() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

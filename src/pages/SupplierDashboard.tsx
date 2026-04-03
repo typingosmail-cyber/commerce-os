@@ -135,6 +135,7 @@ export default function SupplierDashboard() {
           </CardContent>
         </Card>
       </main>
+      <Footer />
     </div>
   );
 }

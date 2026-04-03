@@ -163,6 +163,7 @@ export default function BuyerDashboard() {
           </TabsContent>
         </Tabs>
       </main>
+      <Footer />
     </div>
   );
 }
