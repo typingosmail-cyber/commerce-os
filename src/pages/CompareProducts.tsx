@@ -89,7 +89,7 @@ export default function CompareProducts() {
                 </tr>
               </thead>
               <tbody>
-                <CompareRow label="Category" values={products.map((p) => <Badge variant="outline" className="text-xs">{p.category}</Badge>)} />
+                <CompareRow label="Category" values={products.map((p) => <Badge key={p.id} variant="outline" className="text-xs">{p.category}</Badge>)} />
                 <CompareRow
                   label="Price"
                   values={products.map((p) => (
