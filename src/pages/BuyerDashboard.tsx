@@ -13,6 +13,8 @@ import { BuyerData, CatalogProduct, RFQ, Order } from "@/lib/types";
 import { SupplierMatchResults } from "@/components/buyer/SupplierMatchResults";
 import { matchSuppliers, MatchedSupplier } from "@/lib/supplier-matching";
 import { Search, FileText, Package, TrendingUp, ShoppingCart, ArrowLeft, LogOut, Sparkles } from "lucide-react";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 import { toast } from "@/hooks/use-toast";
 
 export default function BuyerDashboard() {
