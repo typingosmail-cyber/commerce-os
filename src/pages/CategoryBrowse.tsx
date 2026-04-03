@@ -116,7 +116,7 @@ export default function CategoryBrowse() {
                     <Card
                       key={p.id}
                       className="hover:shadow-lg transition-all cursor-pointer group border hover:border-primary/30 relative overflow-hidden"
-                      onClick={() => navigate(`/buyer/dashboard`)}
+                        onClick={() => navigate(`/product/${p.id}`)}
                     >
                       {idx < 3 && (
                         <div className="absolute top-2 left-2 z-10">
@@ -158,7 +158,7 @@ export default function CategoryBrowse() {
                           className="w-full mt-3 h-8 text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/buyer/dashboard`);
+                            navigate(`/product/${p.id}`);
                           }}
                         >
                           Get Best Price
@@ -191,7 +191,7 @@ export default function CategoryBrowse() {
                       <Card
                         key={p.id}
                         className="hover:shadow-md transition-shadow cursor-pointer"
-                        onClick={() => navigate(`/buyer/dashboard`)}
+                        onClick={() => navigate(`/product/${p.id}`)}
                       >
                         <CardContent className="p-5">
                           <Badge variant="outline" className="text-xs mb-2">{p.category}</Badge>
@@ -206,7 +206,7 @@ export default function CategoryBrowse() {
                             className="w-full mt-3"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/buyer/dashboard`);
+                              navigate(`/product/${p.id}`);
                             }}
                           >
                             Get Best Price

@@ -1,14 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { MOCK_CATALOG, PRODUCT_CATEGORIES } from "@/lib/mock-data";
 import { CatalogProduct } from "@/lib/types";
 import { GetBestPriceModal } from "./GetBestPriceModal";
-import { Search, Package, MapPin, Shield, Clock, Filter, ShoppingCart, Sparkles, Store } from "lucide-react";
+import { toggleWishlist, isInWishlist, toggleCompare, isInCompare } from "@/lib/wishlist";
+import {
+  Search, MapPin, Shield, Clock, Filter, ShoppingCart, Sparkles, Store,
+  Heart, GitCompareArrows, SlidersHorizontal, X, Star,
+} from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface Props {
   onCreateRFQ: (product: CatalogProduct) => void;
@@ -27,38 +33,162 @@ export function ProductSearch({ onCreateRFQ }: Props) {
   const [category, setCategory] = useState("all");
   const [stockOnly, setStockOnly] = useState(false);
   const [bestPriceProduct, setBestPriceProduct] = useState<CatalogProduct | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [priceRange, setPriceRange] = useState([0, 10000]);
+  const [minRating, setMinRating] = useState(0);
+  const [sortBy, setSortBy] = useState("relevance");
+  const [wishlistState, setWishlistState] = useState<Record<string, boolean>>({});
+  const [compareState, setCompareState] = useState<Record<string, boolean>>({});
 
-  const filtered = MOCK_CATALOG.filter((p) => {
+  useEffect(() => {
+    const wl: Record<string, boolean> = {};
+    const cl: Record<string, boolean> = {};
+    MOCK_CATALOG.forEach((p) => {
+      wl[p.id] = isInWishlist(p.id);
+      cl[p.id] = isInCompare(p.id);
+    });
+    setWishlistState(wl);
+    setCompareState(cl);
+  }, []);
+
+  const maxPrice = Math.max(...MOCK_CATALOG.map((p) => p.pricePerUnit));
+
+  let filtered = MOCK_CATALOG.filter((p) => {
     const matchesQuery = !query || p.name.toLowerCase().includes(query.toLowerCase()) || p.supplierName.toLowerCase().includes(query.toLowerCase()) || p.description.toLowerCase().includes(query.toLowerCase());
     const matchesCat = category === "all" || p.category === category;
     const matchesStock = !stockOnly || p.inStock;
-    return matchesQuery && matchesCat && matchesStock;
+    const matchesPrice = p.pricePerUnit >= priceRange[0] && p.pricePerUnit <= priceRange[1];
+    const matchesRating = p.supplierScore >= minRating;
+    return matchesQuery && matchesCat && matchesStock && matchesPrice && matchesRating;
   });
+
+  // Sort
+  if (sortBy === "price-asc") filtered = [...filtered].sort((a, b) => a.pricePerUnit - b.pricePerUnit);
+  else if (sortBy === "price-desc") filtered = [...filtered].sort((a, b) => b.pricePerUnit - a.pricePerUnit);
+  else if (sortBy === "rating") filtered = [...filtered].sort((a, b) => b.supplierScore - a.supplierScore);
+  else if (sortBy === "lead-time") filtered = [...filtered].sort((a, b) => a.leadTimeDays - b.leadTimeDays);
+
+  const handleWishlist = (p: CatalogProduct) => {
+    toggleWishlist(p.id);
+    setWishlistState((prev) => ({ ...prev, [p.id]: !prev[p.id] }));
+    toast({ title: wishlistState[p.id] ? "Removed from wishlist" : "Saved to wishlist" });
+  };
+
+  const handleCompare = (p: CatalogProduct) => {
+    const list = toggleCompare(p.id);
+    setCompareState((prev) => ({ ...prev, [p.id]: !prev[p.id] }));
+    if (!compareState[p.id]) {
+      toast({ title: "Added to compare", description: `${list.length}/4 products` });
+    }
+  };
+
+  const activeFilters = (category !== "all" ? 1 : 0) + (stockOnly ? 1 : 0) + (priceRange[0] > 0 || priceRange[1] < maxPrice ? 1 : 0) + (minRating > 0 ? 1 : 0);
 
   return (
     <div className="space-y-5">
-      {/* Search bar */}
+      {/* Search + Sort bar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search products, suppliers, materials..." value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
         </div>
-        <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger className="w-full sm:w-52">
-            <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
-            <SelectValue placeholder="Category" />
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-full sm:w-44">
+            <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {PRODUCT_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            <SelectItem value="relevance">Relevance</SelectItem>
+            <SelectItem value="price-asc">Price: Low to High</SelectItem>
+            <SelectItem value="price-desc">Price: High to Low</SelectItem>
+            <SelectItem value="rating">Highest Rated</SelectItem>
+            <SelectItem value="lead-time">Fastest Delivery</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant={stockOnly ? "default" : "outline"} size="default" onClick={() => setStockOnly(!stockOnly)} className="shrink-0">
-          In Stock Only
+        <Button
+          variant={showFilters ? "default" : "outline"}
+          onClick={() => setShowFilters(!showFilters)}
+          className="shrink-0 relative"
+        >
+          <SlidersHorizontal className="h-4 w-4 mr-2" /> Filters
+          {activeFilters > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
+              {activeFilters}
+            </span>
+          )}
         </Button>
       </div>
 
-      <p className="text-sm text-muted-foreground">{filtered.length} products found</p>
+      {/* Advanced Filters Panel */}
+      {showFilters && (
+        <Card className="border-primary/20">
+          <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">Category</label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {PRODUCT_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                Price Range: ₹{priceRange[0]} – ₹{priceRange[1]}
+              </label>
+              <Slider
+                min={0}
+                max={maxPrice}
+                step={10}
+                value={priceRange}
+                onValueChange={setPriceRange}
+                className="mt-3"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                Min Trust Score: {minRating || "Any"}
+              </label>
+              <Slider
+                min={0}
+                max={1000}
+                step={50}
+                value={[minRating]}
+                onValueChange={([v]) => setMinRating(v)}
+                className="mt-3"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium text-muted-foreground">Quick Filters</label>
+              <Button variant={stockOnly ? "default" : "outline"} size="sm" onClick={() => setStockOnly(!stockOnly)}>
+                In Stock Only
+              </Button>
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => {
+                setCategory("all"); setStockOnly(false); setPriceRange([0, maxPrice]); setMinRating(0);
+              }}>
+                <X className="h-3 w-3 mr-1" /> Clear All
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{filtered.length} products found</p>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate("/wishlist")}>
+            <Heart className="h-3.5 w-3.5 mr-1" /> Wishlist
+          </Button>
+          <Button variant="ghost" size="sm" className="text-xs" onClick={() => navigate("/compare")}>
+            <GitCompareArrows className="h-3.5 w-3.5 mr-1" /> Compare
+          </Button>
+        </div>
+      </div>
 
       {/* Product grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -67,12 +197,23 @@ export function ProductSearch({ onCreateRFQ }: Props) {
             <CardContent className="p-5">
               <div className="flex justify-between items-start mb-3">
                 <Badge variant="outline" className="text-xs">{p.category}</Badge>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleWishlist(p)}>
+                    <Heart className={`h-3.5 w-3.5 ${wishlistState[p.id] ? "fill-current text-destructive" : "text-muted-foreground"}`} />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCompare(p)}>
+                    <GitCompareArrows className={`h-3.5 w-3.5 ${compareState[p.id] ? "text-primary" : "text-muted-foreground"}`} />
+                  </Button>
                   <Shield className="h-3.5 w-3.5 text-muted-foreground" />
                   <ScoreBadge score={p.supplierScore} />
                 </div>
               </div>
-              <h3 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">{p.name}</h3>
+              <h3
+                className="font-semibold text-foreground group-hover:text-primary transition-colors cursor-pointer"
+                onClick={() => navigate(`/product/${p.id}`)}
+              >
+                {p.name}
+              </h3>
               <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{p.description}</p>
 
               <div className="flex items-center gap-4 mt-3 text-sm">
