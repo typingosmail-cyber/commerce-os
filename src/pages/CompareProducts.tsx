@@ -156,7 +156,7 @@ export default function CompareProducts() {
                 />
                 <CompareRow
                   label="Specifications"
-                  values={products.map((p) => <span className="text-xs text-muted-foreground">{p.specifications}</span>)}
+                  values={products.map((p) => <span key={p.id} className="text-xs text-muted-foreground">{p.specifications}</span>)}
                 />
                 <CompareRow
                   label="Actions"
