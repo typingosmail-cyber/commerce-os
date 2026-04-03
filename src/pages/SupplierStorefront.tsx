@@ -9,6 +9,8 @@ import {
   ArrowLeft, Shield, MapPin, Calendar, Users, IndianRupee, Globe, Phone, Mail,
   Clock, CheckCircle, Star, Package, MessageCircle, ShoppingCart,
 } from "lucide-react";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 
 function ScoreBar({ label, value, icon: Icon }: { label: string; value: number; icon: React.ElementType }) {
   const color = value >= 90 ? "bg-success" : value >= 70 ? "bg-secondary" : "bg-warning";
