@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Building2, Mail, Phone, MapPin } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, Shield, Crown, IndianRupee } from "lucide-react";
 
 const FOOTER_LINKS = {
   "Buy on Vyapar OS": [
@@ -7,24 +7,26 @@ const FOOTER_LINKS = {
     { label: "Post Requirements", path: "/buyer/dashboard" },
     { label: "Find Suppliers", path: "/categories" },
     { label: "Request Quotes", path: "/buyer/dashboard" },
+    { label: "Compare Products", path: "/compare" },
   ],
   "Sell on Vyapar OS": [
     { label: "Register as Supplier", path: "/supplier/onboarding" },
     { label: "Supplier Dashboard", path: "/supplier/dashboard" },
-    { label: "Pricing & Plans", path: "#" },
-    { label: "Success Stories", path: "#" },
+    { label: "Pricing & Plans", path: "/pricing" },
+    { label: "Transaction Protection", path: "/escrow" },
+  ],
+  "Earn on Vyapar OS": [
+    { label: "Creator Dashboard", path: "/creator/dashboard" },
+    { label: "Affiliate Program", path: "/creator/dashboard" },
+    { label: "Leaderboard", path: "/creator/dashboard" },
+    { label: "Creator Rewards", path: "/pricing" },
   ],
   "Company": [
     { label: "About Us", path: "#" },
-    { label: "Careers", path: "#" },
+    { label: "Trust & Safety", path: "/escrow" },
     { label: "Blog", path: "#" },
+    { label: "Careers", path: "#" },
     { label: "Contact Us", path: "#" },
-  ],
-  "Support": [
-    { label: "Help Center", path: "#" },
-    { label: "Trust & Safety", path: "#" },
-    { label: "Terms of Service", path: "#" },
-    { label: "Privacy Policy", path: "#" },
   ],
 };
 
@@ -32,7 +34,7 @@ export function Footer() {
   const navigate = useNavigate();
 
   return (
-    <footer className="bg-primary text-primary-foreground">
+    <footer className="bg-primary text-primary-foreground mt-auto">
       <div className="container py-12">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           {/* Brand */}
@@ -44,17 +46,19 @@ export function Footer() {
               <span className="font-bold text-lg">Vyapar OS</span>
             </div>
             <p className="text-primary-foreground/70 text-sm leading-relaxed mb-4">
-              India's trusted B2B commerce platform connecting manufacturers, suppliers, and buyers.
+              India's trusted B2B commerce platform. Buy, sell, and earn with transaction protection & AI matching.
             </p>
             <div className="space-y-2 text-sm text-primary-foreground/60">
-              <div className="flex items-center gap-2">
-                <Phone className="h-3 w-3" /> 1800-XXX-XXXX
+              <div className="flex items-center gap-2"><Phone className="h-3 w-3" /> 1800-XXX-XXXX</div>
+              <div className="flex items-center gap-2"><Mail className="h-3 w-3" /> support@vyaparos.com</div>
+              <div className="flex items-center gap-2"><MapPin className="h-3 w-3" /> Mumbai, India</div>
+            </div>
+            <div className="flex items-center gap-3 mt-4">
+              <div className="flex items-center gap-1 text-[10px] text-primary-foreground/50">
+                <Shield className="h-3 w-3" /> Escrow Protected
               </div>
-              <div className="flex items-center gap-2">
-                <Mail className="h-3 w-3" /> support@vyaparos.com
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-3 w-3" /> Mumbai, India
+              <div className="flex items-center gap-1 text-[10px] text-primary-foreground/50">
+                <Crown className="h-3 w-3" /> Creator Network
               </div>
             </div>
           </div>
@@ -79,7 +83,6 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Bottom bar */}
         <div className="border-t border-primary-foreground/10 mt-8 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-primary-foreground/50">
             © 2026 Vyapar OS. All rights reserved. | GST: 27AABCV1234F1Z5

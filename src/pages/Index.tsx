@@ -25,10 +25,10 @@ const STATS = [
 ];
 
 const FEATURES = [
-  { icon: Shield, title: "GST Verified Suppliers", desc: "Every supplier verified against GSTN with real-time compliance checks and dynamic trust scoring from 0-1000." },
-  { icon: Zap, title: "AI-Powered Matching", desc: "Smart procurement engine analyzes your requirements and matches you with the most relevant suppliers in seconds." },
-  { icon: Truck, title: "End-to-End Tracking", desc: "Track orders from PO to delivery with real-time status updates, dispatch notifications, and delivery confirmations." },
-  { icon: Award, title: "Quality Assured", desc: "Supplier quality scores based on buyer reviews, delivery performance, and product test certificates." },
+  { icon: Shield, title: "Escrow-Protected Deals", desc: "Every transaction backed by milestone-based escrow with AI risk scoring and dispute resolution." },
+  { icon: Zap, title: "AI-Powered Matching", desc: "Game-theory-driven matching engine finds optimal suppliers using Bayesian trust scoring." },
+  { icon: Truck, title: "End-to-End Tracking", desc: "Track orders from PO to delivery with real-time status updates and logistics integration." },
+  { icon: Award, title: "Creator Affiliate Network", desc: "1000+ business creators drive demand. Earn commissions by recommending verified suppliers." },
 ];
 
 const TESTIMONIALS = [
@@ -116,6 +116,17 @@ export default function Index() {
             <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" onClick={() => navigate("/supplier/onboarding")}>
               <Building2 className="h-4 w-4 mr-2" /> List Your Business — Free
             </Button>
+          </div>
+          <div className="flex items-center justify-center gap-6 mt-4 text-sm text-primary-foreground/60">
+            <button onClick={() => navigate("/escrow")} className="flex items-center gap-1 hover:text-primary-foreground transition-colors">
+              <Shield className="h-3 w-3" /> Escrow Protected
+            </button>
+            <button onClick={() => navigate("/creator/dashboard")} className="flex items-center gap-1 hover:text-primary-foreground transition-colors">
+              <Award className="h-3 w-3" /> Earn as Creator
+            </button>
+            <button onClick={() => navigate("/pricing")} className="flex items-center gap-1 hover:text-primary-foreground transition-colors">
+              <Zap className="h-3 w-3" /> View Plans
+            </button>
           </div>
         </div>
       </section>
@@ -388,6 +399,45 @@ export default function Index() {
         </div>
       </section>
 
+      {/* Creator CTA */}
+      <section className="bg-gradient-to-r from-secondary/10 via-background to-secondary/10 py-12">
+        <div className="container">
+          <div className="flex flex-col md:flex-row items-center gap-8 max-w-4xl mx-auto">
+            <div className="flex-1">
+              <Badge className="bg-secondary text-secondary-foreground mb-3">New: Creator Program</Badge>
+              <h2 className="text-2xl font-bold text-foreground mb-2">Earn by Recommending Suppliers</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Join 1000+ business creators earning 3-5% commission on every deal.
+                Create content, generate affiliate links, and climb the leaderboard.
+              </p>
+              <div className="flex gap-3">
+                <Button onClick={() => navigate("/creator/dashboard")}>
+                  <Award className="h-4 w-4 mr-2" /> Join Creator Program
+                </Button>
+                <Button variant="outline" onClick={() => navigate("/pricing")}>
+                  View Plans
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: "Avg. Monthly Earning", value: "₹42K" },
+                { label: "Active Creators", value: "1,200+" },
+                { label: "Conversion Rate", value: "26%" },
+                { label: "Top Creator Earned", value: "₹8.9L" },
+              ].map(s => (
+                <Card key={s.label} className="text-center">
+                  <CardContent className="p-4">
+                    <p className="text-lg font-bold text-foreground">{s.value}</p>
+                    <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="bg-primary text-primary-foreground py-16">
         <div className="container text-center max-w-2xl">
@@ -402,10 +452,13 @@ export default function Index() {
             <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" onClick={() => navigate("/supplier/onboarding")}>
               <Building2 className="h-4 w-4 mr-2" /> Start Selling — Free
             </Button>
+            <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" onClick={() => navigate("/creator/dashboard")}>
+              <Award className="h-4 w-4 mr-2" /> Earn as Creator
+            </Button>
           </div>
           <div className="flex items-center justify-center gap-6 mt-6 text-sm text-primary-foreground/60">
-            <span className="flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> Free Registration</span>
-            <span className="flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> No Commission</span>
+            <span className="flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> Escrow Protected</span>
+            <span className="flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> AI Trust Scoring</span>
             <span className="flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> GST Verified</span>
           </div>
         </div>
