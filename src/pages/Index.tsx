@@ -117,6 +117,17 @@ export default function Index() {
               <Building2 className="h-4 w-4 mr-2" /> List Your Business — Free
             </Button>
           </div>
+          <div className="flex items-center justify-center gap-6 mt-4 text-sm text-primary-foreground/60">
+            <button onClick={() => navigate("/escrow")} className="flex items-center gap-1 hover:text-primary-foreground transition-colors">
+              <Shield className="h-3 w-3" /> Escrow Protected
+            </button>
+            <button onClick={() => navigate("/creator/dashboard")} className="flex items-center gap-1 hover:text-primary-foreground transition-colors">
+              <Award className="h-3 w-3" /> Earn as Creator
+            </button>
+            <button onClick={() => navigate("/pricing")} className="flex items-center gap-1 hover:text-primary-foreground transition-colors">
+              <Zap className="h-3 w-3" /> View Plans
+            </button>
+          </div>
         </div>
       </section>
 
