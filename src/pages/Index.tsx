@@ -25,10 +25,10 @@ const STATS = [
 ];
 
 const FEATURES = [
-  { icon: Shield, title: "GST Verified Suppliers", desc: "Every supplier verified against GSTN with real-time compliance checks and dynamic trust scoring from 0-1000." },
-  { icon: Zap, title: "AI-Powered Matching", desc: "Smart procurement engine analyzes your requirements and matches you with the most relevant suppliers in seconds." },
-  { icon: Truck, title: "End-to-End Tracking", desc: "Track orders from PO to delivery with real-time status updates, dispatch notifications, and delivery confirmations." },
-  { icon: Award, title: "Quality Assured", desc: "Supplier quality scores based on buyer reviews, delivery performance, and product test certificates." },
+  { icon: Shield, title: "Escrow-Protected Deals", desc: "Every transaction backed by milestone-based escrow with AI risk scoring and dispute resolution." },
+  { icon: Zap, title: "AI-Powered Matching", desc: "Game-theory-driven matching engine finds optimal suppliers using Bayesian trust scoring." },
+  { icon: Truck, title: "End-to-End Tracking", desc: "Track orders from PO to delivery with real-time status updates and logistics integration." },
+  { icon: Award, title: "Creator Affiliate Network", desc: "1000+ business creators drive demand. Earn commissions by recommending verified suppliers." },
 ];
 
 const TESTIMONIALS = [
