@@ -7,7 +7,7 @@ import { useAuth, type UserRole } from "@/lib/auth-context";
 import { AuthModal } from "@/components/AuthModal";
 import {
   Search, ShoppingCart, Menu, X, MessageCircle,
-  Grid3X3, Building2, ChevronDown, Heart, Crown, Shield,
+  Grid3X3, Building2, ChevronDown, Heart, Crown, Shield, Brain,
   LogOut, IndianRupee, ArrowRightLeft, Wallet,
 } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
