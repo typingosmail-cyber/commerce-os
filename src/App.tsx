@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CompareFloatingBar } from "@/components/CompareFloatingBar";
 import { AuthProvider } from "@/lib/auth-context";
+import { NotificationProvider } from "@/lib/notifications";
 import Index from "./pages/Index";
 import SupplierOnboarding from "./pages/SupplierOnboarding";
 import SupplierDashboard from "./pages/SupplierDashboard";
