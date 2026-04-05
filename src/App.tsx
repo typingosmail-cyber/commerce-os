@@ -50,6 +50,7 @@ const App = () => (
           <CompareFloatingBar />
         </BrowserRouter>
       </TooltipProvider>
+      </NotificationProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

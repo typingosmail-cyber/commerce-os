@@ -126,10 +126,7 @@ export function Navbar() {
               </Button>
             ))}
 
-            <Button variant="ghost" size="icon" className="relative" onClick={() => navigate("/messages")}>
-              <Bell className="h-4 w-4" />
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] flex items-center justify-center">3</span>
-            </Button>
+            <NotificationCenter />
 
             <Button variant="ghost" size="icon" className="hidden sm:flex" onClick={() => navigate("/wishlist")}>
               <Heart className="h-4 w-4" />
