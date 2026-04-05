@@ -5,11 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { GuaranteeExplainer, SmartDealCard } from "@/components/DealGuarantee";
 import { CATEGORY_GROUPS, MOCK_CATALOG, MOCK_SUPPLIERS } from "@/lib/mock-data";
 import {
   Shield, Zap, Package, TrendingUp, ArrowRight, Building2, ShoppingCart,
   Search, Cog, Star, Users, CheckCircle2, MapPin, Clock, Phone,
-  Building, Truck, Award, IndianRupee, Factory, Verified,
+  Building, Truck, Award, IndianRupee, Factory, Verified, Lock, Handshake,
 } from "lucide-react";
 import { useState } from "react";
 
