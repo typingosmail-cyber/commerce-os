@@ -19,6 +19,7 @@ import Wishlist from "./pages/Wishlist";
 import Pricing from "./pages/Pricing";
 import CreatorDashboard from "./pages/CreatorDashboard";
 import EscrowCenter from "./pages/EscrowCenter";
+import DemandIntelligence from "./pages/DemandIntelligence";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
