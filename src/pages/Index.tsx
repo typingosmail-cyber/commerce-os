@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { GuaranteeExplainer, SmartDealCard } from "@/components/DealGuarantee";
 import { CATEGORY_GROUPS, MOCK_CATALOG, MOCK_SUPPLIERS } from "@/lib/mock-data";
 import {
   Shield, Zap, Package, TrendingUp, ArrowRight, Building2, ShoppingCart,
@@ -341,6 +342,24 @@ export default function Index() {
                 </Card>
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Vyapar Guarantee Section */}
+      <section className="container py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-3">
+            <GuaranteeExplainer />
+          </div>
+          <div className="lg:col-span-2">
+            <SmartDealCard
+              dealValue={170000}
+              supplierName="Precision Hydraulics, Chennai"
+              productName="Hydraulic Cylinders 50mm × 20 units"
+              riskScore={92}
+              trustScore={845}
+            />
           </div>
         </div>
       </section>
