@@ -346,6 +346,24 @@ export default function Index() {
         </div>
       </section>
 
+      {/* Vyapar Guarantee Section */}
+      <section className="container py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-3">
+            <GuaranteeExplainer />
+          </div>
+          <div className="lg:col-span-2">
+            <SmartDealCard
+              dealValue={170000}
+              supplierName="Precision Hydraulics, Chennai"
+              productName="Hydraulic Cylinders 50mm × 20 units"
+              riskScore={92}
+              trustScore={845}
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section className="bg-muted/50 py-12">
         <div className="container">
