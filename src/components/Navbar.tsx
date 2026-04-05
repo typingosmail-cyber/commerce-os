@@ -7,7 +7,7 @@ import { useAuth, type UserRole } from "@/lib/auth-context";
 import { AuthModal } from "@/components/AuthModal";
 import {
   Search, ShoppingCart, Menu, X, MessageCircle,
-  Grid3X3, Building2, ChevronDown, Heart, Crown, Shield,
+  Grid3X3, Building2, ChevronDown, Heart, Crown, Shield, Brain,
   LogOut, IndianRupee, ArrowRightLeft, Wallet,
 } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
@@ -18,6 +18,7 @@ import {
 
 const NAV_LINKS = [
   { label: "Categories", path: "/categories", icon: Grid3X3 },
+  { label: "Intelligence", path: "/intelligence", icon: Brain },
   { label: "Compare", path: "/compare", icon: Heart },
   { label: "Messages", path: "/messages", icon: MessageCircle },
 ];

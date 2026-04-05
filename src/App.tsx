@@ -19,6 +19,7 @@ import Wishlist from "./pages/Wishlist";
 import Pricing from "./pages/Pricing";
 import CreatorDashboard from "./pages/CreatorDashboard";
 import EscrowCenter from "./pages/EscrowCenter";
+import DemandIntelligence from "./pages/DemandIntelligence";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/creator/dashboard" element={<CreatorDashboard />} />
             <Route path="/escrow" element={<EscrowCenter />} />
+            <Route path="/intelligence" element={<DemandIntelligence />} />
             <Route path="/supplier/onboarding" element={<SupplierOnboarding />} />
             <Route path="/supplier/dashboard" element={<SupplierDashboard />} />
             <Route path="/supplier/:id" element={<SupplierStorefront />} />
