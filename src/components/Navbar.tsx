@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth, type UserRole } from "@/lib/auth-context";
 import { AuthModal } from "@/components/AuthModal";
 import {
-  Search, Bell, ShoppingCart, User, Menu, X, MessageCircle,
+  Search, ShoppingCart, Menu, X, MessageCircle,
   Grid3X3, Building2, ChevronDown, Heart, Crown, Shield,
-  LogOut, Settings, IndianRupee, ArrowRightLeft, Wallet, Link,
+  LogOut, IndianRupee, ArrowRightLeft, Wallet,
 } from "lucide-react";
+import { NotificationCenter } from "@/components/NotificationCenter";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel,
