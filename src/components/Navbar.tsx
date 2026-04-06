@@ -191,6 +191,9 @@ export function Navbar() {
                     <DropdownMenuItem onClick={() => navigate("/supplier/dashboard")}>
                       <Building2 className="h-4 w-4 mr-2" /> Seller Dashboard
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/supplier/analytics")}>
+                      <BarChart3 className="h-4 w-4 mr-2" /> Seller Analytics
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/creator/dashboard")}>
                       <Crown className="h-4 w-4 mr-2" /> Creator Dashboard
                     </DropdownMenuItem>
