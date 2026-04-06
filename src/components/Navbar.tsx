@@ -8,7 +8,7 @@ import { AuthModal } from "@/components/AuthModal";
 import {
   Search, ShoppingCart, Menu, X, MessageCircle,
   Grid3X3, Building2, ChevronDown, Heart, Crown, Shield, Brain,
-  LogOut, IndianRupee, ArrowRightLeft, Wallet, Truck,
+  LogOut, IndianRupee, ArrowRightLeft, Wallet, Truck, BarChart3,
 } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import {
@@ -190,6 +190,9 @@ export function Navbar() {
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/supplier/dashboard")}>
                       <Building2 className="h-4 w-4 mr-2" /> Seller Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/supplier/analytics")}>
+                      <BarChart3 className="h-4 w-4 mr-2" /> Seller Analytics
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/creator/dashboard")}>
                       <Crown className="h-4 w-4 mr-2" /> Creator Dashboard
