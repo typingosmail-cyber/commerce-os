@@ -21,6 +21,7 @@ import CreatorDashboard from "./pages/CreatorDashboard";
 import EscrowCenter from "./pages/EscrowCenter";
 import DemandIntelligence from "./pages/DemandIntelligence";
 import OrderTracking from "./pages/OrderTracking";
+import SupplierAnalytics from "./pages/SupplierAnalytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
