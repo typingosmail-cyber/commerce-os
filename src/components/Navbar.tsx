@@ -8,7 +8,7 @@ import { AuthModal } from "@/components/AuthModal";
 import {
   Search, ShoppingCart, Menu, X, MessageCircle,
   Grid3X3, Building2, ChevronDown, Heart, Crown, Shield, Brain,
-  LogOut, IndianRupee, ArrowRightLeft, Wallet, Truck,
+  LogOut, IndianRupee, ArrowRightLeft, Wallet, Truck, BarChart3,
 } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import {
