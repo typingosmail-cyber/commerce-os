@@ -8,7 +8,7 @@ import { AuthModal } from "@/components/AuthModal";
 import {
   Search, ShoppingCart, Menu, X, MessageCircle,
   Grid3X3, Building2, ChevronDown, Heart, Crown, Shield, Brain,
-  LogOut, IndianRupee, ArrowRightLeft, Wallet, Truck, BarChart3,
+  LogOut, IndianRupee, ArrowRightLeft, Wallet, Truck, BarChart3, CreditCard,
 } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import {
@@ -187,6 +187,9 @@ export function Navbar() {
                     </div>
                     <DropdownMenuItem onClick={() => navigate("/buyer/dashboard")}>
                       <ShoppingCart className="h-4 w-4 mr-2" /> Buyer Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/buyer/credit")}>
+                      <CreditCard className="h-4 w-4 mr-2" /> BNPL Credit
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/supplier/dashboard")}>
                       <Building2 className="h-4 w-4 mr-2" /> Seller Dashboard
