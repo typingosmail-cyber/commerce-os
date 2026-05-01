@@ -145,7 +145,7 @@ export default function SupplierVerification() {
                           <span className="font-mono text-xs truncate">{doc.fileName}</span>
                         </div>
                         {doc.reviewerNote && (
-                          <p className={`text-xs ${doc.status === "rejected" ? "text-destructive" : "text-success"}`}>
+                          <p className={`text-xs ${doc.status === "verified" ? "text-success" : "text-muted-foreground"}`}>
                             {doc.reviewerNote}
                           </p>
                         )}
