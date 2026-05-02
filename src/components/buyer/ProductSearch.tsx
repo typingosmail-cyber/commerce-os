@@ -311,7 +311,8 @@ export function ProductSearch({ onCreateRFQ }: Props) {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       {/* Get Best Price Modal */}
