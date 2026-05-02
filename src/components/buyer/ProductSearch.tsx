@@ -136,7 +136,7 @@ export function ProductSearch({ onCreateRFQ }: Props) {
       {/* Advanced Filters Panel */}
       {showFilters && (
         <Card className="border-primary/20">
-          <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-2 block">Category</label>
               <Select value={category} onValueChange={setCategory}>
