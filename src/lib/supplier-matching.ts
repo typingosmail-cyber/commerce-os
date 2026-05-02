@@ -1,5 +1,9 @@
 import { CatalogProduct, RFQ } from "./types";
 import { MOCK_CATALOG } from "./mock-data";
+import {
+  getSupplierTier, tierMatchBoost, getTierPerks, describeFrictionPerk,
+  type BadgeDefinition, type BadgeTier, type TierPerks,
+} from "./supplier-tiers";
 
 export interface MatchedSupplier {
   supplierId: string;
@@ -14,12 +18,18 @@ export interface MatchedSupplier {
   inStock: boolean;
   categoryMatch: boolean;
   reasons: string[];
+  tier: BadgeTier;
+  tierLabel: string;
+  tierColor: string;
+  perks: TierPerks;
+  perkLabels: string[];
   breakdown: {
     trustWeight: number;
     priceWeight: number;
     deliveryWeight: number;
     availabilityBonus: number;
     categoryBonus: number;
+    verificationWeight: number;
   };
 }
 
@@ -29,23 +39,25 @@ interface MatchConfig {
   deliveryWeight: number;
   availabilityBonus: number;
   categoryBonus: number;
+  verificationWeight: number;
 }
 
 const DEFAULT_CONFIG: MatchConfig = {
-  trustWeight: 0.35,
-  priceWeight: 0.30,
-  deliveryWeight: 0.20,
-  availabilityBonus: 0.08,
+  trustWeight: 0.28,
+  priceWeight: 0.25,
+  deliveryWeight: 0.18,
+  availabilityBonus: 0.07,
   categoryBonus: 0.07,
+  verificationWeight: 0.15, // verification badge tier
 };
 
 /**
  * AI-powered supplier matching algorithm.
  * Ranks suppliers by a weighted composite of trust score, price competitiveness,
- * delivery speed, stock availability, and category relevance.
+ * delivery speed, stock availability, category relevance, and verification tier.
+ * Higher badges (Gold/Platinum) get prioritized listing positions.
  */
 export function matchSuppliers(rfq: Pick<RFQ, "category" | "quantity" | "unit" | "budget" | "deliveryDate">, config = DEFAULT_CONFIG): MatchedSupplier[] {
-  // Deduplicate suppliers (catalog may list multiple products per supplier)
   const supplierMap = new Map<string, CatalogProduct[]>();
   for (const p of MOCK_CATALOG) {
     const existing = supplierMap.get(p.supplierId) || [];
@@ -64,7 +76,6 @@ export function matchSuppliers(rfq: Pick<RFQ, "category" | "quantity" | "unit" |
   const results: MatchedSupplier[] = [];
 
   for (const [supplierId, products] of supplierMap) {
-    // Pick the best product match: prefer category match, then lowest price
     const categoryProducts = products.filter((p) => p.category === rfq.category);
     const bestProduct = categoryProducts.length > 0
       ? categoryProducts.reduce((a, b) => a.pricePerUnit < b.pricePerUnit ? a : b)
@@ -80,7 +91,6 @@ export function matchSuppliers(rfq: Pick<RFQ, "category" | "quantity" | "unit" |
       ? 50
       : ((maxPrice - bestProduct.pricePerUnit) / (maxPrice - minPrice)) * 100;
 
-    // Budget alignment bonus
     let budgetBonus = 0;
     if (rfq.budget > 0) {
       const estimatedTotal = bestProduct.pricePerUnit * rfq.quantity;
@@ -93,23 +103,29 @@ export function matchSuppliers(rfq: Pick<RFQ, "category" | "quantity" | "unit" |
       ? Math.max(0, 100 - (bestProduct.leadTimeDays / daysUntilDeadline) * 100 + 20)
       : Math.max(0, 30 - (bestProduct.leadTimeDays - daysUntilDeadline) * 5);
 
-    // --- Availability (0 or bonus) ---
     const availScore = bestProduct.inStock ? 100 : 0;
-
-    // --- Category relevance (0 or bonus) ---
     const catScore = categoryMatch ? 100 : 0;
 
-    // Composite
+    // --- Verification tier (0-100) ---
+    const tierDef: BadgeDefinition = getSupplierTier(bestProduct.supplierScore);
+    const verificationNorm = tierMatchBoost(tierDef.tier);
+    const perks = getTierPerks(tierDef.tier);
+    const perkLabels = describeFrictionPerk(tierDef.tier);
+
     const composite = Math.min(100, Math.round(
       trustNorm * config.trustWeight +
       (priceNorm + budgetBonus) * config.priceWeight +
       deliveryNorm * config.deliveryWeight +
       availScore * config.availabilityBonus +
-      catScore * config.categoryBonus
+      catScore * config.categoryBonus +
+      verificationNorm * config.verificationWeight
     ));
 
-    // Build human-readable reasons
     const reasons: string[] = [];
+    if (tierDef.tier === "platinum") reasons.push("Platinum verified — top tier");
+    else if (tierDef.tier === "gold") reasons.push("Gold verified supplier");
+    else if (tierDef.tier === "silver") reasons.push("Silver trusted supplier");
+    else if (tierDef.tier === "bronze") reasons.push("GST-verified");
     if (trustNorm >= 80) reasons.push("High trust score");
     else if (trustNorm >= 60) reasons.push("Good trust score");
     if (priceNorm >= 70) reasons.push("Competitive pricing");
@@ -117,6 +133,8 @@ export function matchSuppliers(rfq: Pick<RFQ, "category" | "quantity" | "unit" |
     if (bestProduct.leadTimeDays <= daysUntilDeadline) reasons.push("Can meet deadline");
     if (bestProduct.inStock) reasons.push("In stock");
     if (categoryMatch) reasons.push("Exact category match");
+    if (perks.escrowFeePct === 0) reasons.push("0% escrow fee");
+    if (perks.bnplEligible) reasons.push("BNPL eligible");
 
     results.push({
       supplierId,
@@ -131,12 +149,18 @@ export function matchSuppliers(rfq: Pick<RFQ, "category" | "quantity" | "unit" |
       inStock: bestProduct.inStock,
       categoryMatch,
       reasons,
+      tier: tierDef.tier,
+      tierLabel: tierDef.label,
+      tierColor: tierDef.color,
+      perks,
+      perkLabels,
       breakdown: {
         trustWeight: Math.round(trustNorm * config.trustWeight),
         priceWeight: Math.round((priceNorm + budgetBonus) * config.priceWeight),
         deliveryWeight: Math.round(deliveryNorm * config.deliveryWeight),
         availabilityBonus: Math.round(availScore * config.availabilityBonus),
         categoryBonus: Math.round(catScore * config.categoryBonus),
+        verificationWeight: Math.round(verificationNorm * config.verificationWeight),
       },
     });
   }
