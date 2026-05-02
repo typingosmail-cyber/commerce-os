@@ -25,6 +25,7 @@ import SupplierAnalytics from "./pages/SupplierAnalytics";
 import SupplierVerification from "./pages/SupplierVerification";
 import BuyerCredit from "./pages/BuyerCredit";
 import FraudDetection from "./pages/FraudDetection";
+import AdminReviewer from "./pages/AdminReviewer";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="/buyer/dashboard" element={<BuyerDashboard />} />
             <Route path="/buyer/credit" element={<BuyerCredit />} />
             <Route path="/admin/fraud" element={<FraudDetection />} />
+            <Route path="/admin/reviewer" element={<AdminReviewer />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
