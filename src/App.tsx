@@ -24,6 +24,7 @@ import OrderTracking from "./pages/OrderTracking";
 import SupplierAnalytics from "./pages/SupplierAnalytics";
 import SupplierVerification from "./pages/SupplierVerification";
 import BuyerCredit from "./pages/BuyerCredit";
+import FraudDetection from "./pages/FraudDetection";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/supplier/:id" element={<SupplierStorefront />} />
             <Route path="/buyer/dashboard" element={<BuyerDashboard />} />
             <Route path="/buyer/credit" element={<BuyerCredit />} />
+            <Route path="/admin/fraud" element={<FraudDetection />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
