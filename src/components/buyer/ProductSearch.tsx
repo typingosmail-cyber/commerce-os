@@ -10,9 +10,10 @@ import { MOCK_CATALOG, PRODUCT_CATEGORIES } from "@/lib/mock-data";
 import { CatalogProduct } from "@/lib/types";
 import { GetBestPriceModal } from "./GetBestPriceModal";
 import { toggleWishlist, isInWishlist, toggleCompare, isInCompare } from "@/lib/wishlist";
+import { getSupplierTier, tierRank, getTierPerks, type BadgeTier } from "@/lib/supplier-tiers";
 import {
   Search, MapPin, Shield, Clock, Filter, ShoppingCart, Sparkles, Store,
-  Heart, GitCompareArrows, SlidersHorizontal, X, Star,
+  Heart, GitCompareArrows, SlidersHorizontal, X, Star, Award, BadgeCheck,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -36,6 +37,7 @@ export function ProductSearch({ onCreateRFQ }: Props) {
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState([0, 10000]);
   const [minRating, setMinRating] = useState(0);
+  const [minTier, setMinTier] = useState<BadgeTier | "any">("any");
   const [sortBy, setSortBy] = useState("relevance");
   const [wishlistState, setWishlistState] = useState<Record<string, boolean>>({});
   const [compareState, setCompareState] = useState<Record<string, boolean>>({});
@@ -53,17 +55,29 @@ export function ProductSearch({ onCreateRFQ }: Props) {
 
   const maxPrice = Math.max(...MOCK_CATALOG.map((p) => p.pricePerUnit));
 
+  const minTierRank = minTier === "any" ? -1 : tierRank(minTier);
+
   let filtered = MOCK_CATALOG.filter((p) => {
     const matchesQuery = !query || p.name.toLowerCase().includes(query.toLowerCase()) || p.supplierName.toLowerCase().includes(query.toLowerCase()) || p.description.toLowerCase().includes(query.toLowerCase());
     const matchesCat = category === "all" || p.category === category;
     const matchesStock = !stockOnly || p.inStock;
     const matchesPrice = p.pricePerUnit >= priceRange[0] && p.pricePerUnit <= priceRange[1];
     const matchesRating = p.supplierScore >= minRating;
-    return matchesQuery && matchesCat && matchesStock && matchesPrice && matchesRating;
+    const matchesTier = minTierRank < 0 || tierRank(getSupplierTier(p.supplierScore).tier) >= minTierRank;
+    return matchesQuery && matchesCat && matchesStock && matchesPrice && matchesRating && matchesTier;
   });
 
-  // Sort
-  if (sortBy === "price-asc") filtered = [...filtered].sort((a, b) => a.pricePerUnit - b.pricePerUnit);
+  // Default ("relevance") sort: prioritize verification tier, then trust score —
+  // higher badges always surface first.
+  if (sortBy === "relevance") {
+    filtered = [...filtered].sort((a, b) => {
+      const tierDiff = tierRank(getSupplierTier(b.supplierScore).tier) - tierRank(getSupplierTier(a.supplierScore).tier);
+      if (tierDiff !== 0) return tierDiff;
+      return b.supplierScore - a.supplierScore;
+    });
+  }
+  else if (sortBy === "tier") filtered = [...filtered].sort((a, b) => tierRank(getSupplierTier(b.supplierScore).tier) - tierRank(getSupplierTier(a.supplierScore).tier) || b.supplierScore - a.supplierScore);
+  else if (sortBy === "price-asc") filtered = [...filtered].sort((a, b) => a.pricePerUnit - b.pricePerUnit);
   else if (sortBy === "price-desc") filtered = [...filtered].sort((a, b) => b.pricePerUnit - a.pricePerUnit);
   else if (sortBy === "rating") filtered = [...filtered].sort((a, b) => b.supplierScore - a.supplierScore);
   else if (sortBy === "lead-time") filtered = [...filtered].sort((a, b) => a.leadTimeDays - b.leadTimeDays);
@@ -82,7 +96,7 @@ export function ProductSearch({ onCreateRFQ }: Props) {
     }
   };
 
-  const activeFilters = (category !== "all" ? 1 : 0) + (stockOnly ? 1 : 0) + (priceRange[0] > 0 || priceRange[1] < maxPrice ? 1 : 0) + (minRating > 0 ? 1 : 0);
+  const activeFilters = (category !== "all" ? 1 : 0) + (stockOnly ? 1 : 0) + (priceRange[0] > 0 || priceRange[1] < maxPrice ? 1 : 0) + (minRating > 0 ? 1 : 0) + (minTier !== "any" ? 1 : 0);
 
   return (
     <div className="space-y-5">
@@ -97,7 +111,8 @@ export function ProductSearch({ onCreateRFQ }: Props) {
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="relevance">Relevance</SelectItem>
+            <SelectItem value="relevance">Relevance (Verified First)</SelectItem>
+            <SelectItem value="tier">Verification Tier</SelectItem>
             <SelectItem value="price-asc">Price: Low to High</SelectItem>
             <SelectItem value="price-desc">Price: High to Low</SelectItem>
             <SelectItem value="rating">Highest Rated</SelectItem>
@@ -121,7 +136,7 @@ export function ProductSearch({ onCreateRFQ }: Props) {
       {/* Advanced Filters Panel */}
       {showFilters && (
         <Card className="border-primary/20">
-          <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-2 block">Category</label>
               <Select value={category} onValueChange={setCategory}>
@@ -163,13 +178,31 @@ export function ProductSearch({ onCreateRFQ }: Props) {
               />
             </div>
 
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block flex items-center gap-1">
+                <BadgeCheck className="h-3 w-3" /> Min. Verification Tier
+              </label>
+              <Select value={minTier} onValueChange={(v) => setMinTier(v as BadgeTier | "any")}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any tier</SelectItem>
+                  <SelectItem value="bronze">Bronze+</SelectItem>
+                  <SelectItem value="silver">Silver+</SelectItem>
+                  <SelectItem value="gold">Gold+</SelectItem>
+                  <SelectItem value="platinum">Platinum only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex flex-col gap-2">
               <label className="text-xs font-medium text-muted-foreground">Quick Filters</label>
               <Button variant={stockOnly ? "default" : "outline"} size="sm" onClick={() => setStockOnly(!stockOnly)}>
                 In Stock Only
               </Button>
               <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => {
-                setCategory("all"); setStockOnly(false); setPriceRange([0, maxPrice]); setMinRating(0);
+                setCategory("all"); setStockOnly(false); setPriceRange([0, maxPrice]); setMinRating(0); setMinTier("any");
               }}>
                 <X className="h-3 w-3 mr-1" /> Clear All
               </Button>
@@ -192,11 +225,25 @@ export function ProductSearch({ onCreateRFQ }: Props) {
 
       {/* Product grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filtered.map((p) => (
-          <Card key={p.id} className="hover:shadow-md transition-shadow group">
+        {filtered.map((p) => {
+          const tierDef = getSupplierTier(p.supplierScore);
+          const perks = getTierPerks(tierDef.tier);
+          const isPriority = tierRank(tierDef.tier) >= 3; // Gold or Platinum
+          return (
+          <Card key={p.id} className={`hover:shadow-md transition-shadow group relative ${isPriority ? "border-primary/40 ring-1 ring-primary/10" : ""}`}>
+            {isPriority && (
+              <div className="absolute -top-2 left-4 px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center gap-1 shadow-sm">
+                <Award className="h-3 w-3" /> Priority Listing
+              </div>
+            )}
             <CardContent className="p-5">
               <div className="flex justify-between items-start mb-3">
-                <Badge variant="outline" className="text-xs">{p.category}</Badge>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Badge variant="outline" className="text-xs">{p.category}</Badge>
+                  <Badge variant="outline" className={`${tierDef.color} text-[10px] gap-1`}>
+                    <Award className="h-2.5 w-2.5" /> {tierDef.label}
+                  </Badge>
+                </div>
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleWishlist(p)}>
                     <Heart className={`h-3.5 w-3.5 ${wishlistState[p.id] ? "fill-current text-destructive" : "text-muted-foreground"}`} />
@@ -224,6 +271,21 @@ export function ProductSearch({ onCreateRFQ }: Props) {
                 </span>
               </div>
 
+              {/* Trust friction perks unlocked by this supplier's tier */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                {perks.escrowFeePct === 0 ? (
+                  <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">0% escrow fee</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px]">{perks.escrowFeePct}% escrow</Badge>
+                )}
+                <Badge variant="outline" className="text-[10px]">
+                  Reply ≤{perks.responseSlaHours}h
+                </Badge>
+                {perks.bnplEligible && <Badge variant="outline" className="text-[10px]">BNPL eligible</Badge>}
+                {perks.guaranteeCovered && <Badge variant="outline" className="text-[10px]">Deal Guarantee</Badge>}
+                {perks.prepayRequired && <Badge variant="outline" className="text-[10px] text-warning border-warning/30">Advance pay</Badge>}
+              </div>
+
               <div className="flex items-center justify-between mt-4 pt-3 border-t">
                 <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors" onClick={() => navigate(`/supplier/${p.supplierId}`)}>
                   <Store className="h-3.5 w-3.5" />
@@ -249,7 +311,8 @@ export function ProductSearch({ onCreateRFQ }: Props) {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       {/* Get Best Price Modal */}

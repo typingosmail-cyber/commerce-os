@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { MatchedSupplier } from "@/lib/supplier-matching";
-import { Sparkles, Shield, Clock, IndianRupee, Package, MapPin, ChevronDown, ChevronUp, Zap, TrendingUp, Filter } from "lucide-react";
+import { tierRank } from "@/lib/supplier-tiers";
+import { Sparkles, Shield, Clock, IndianRupee, Package, MapPin, ChevronDown, ChevronUp, Zap, TrendingUp, Filter, Award, BadgeCheck } from "lucide-react";
 
-type SortOption = "score" | "price-asc" | "price-desc" | "delivery-asc";
+type SortOption = "score" | "price-asc" | "price-desc" | "delivery-asc" | "tier";
 
 interface Props {
   matches: MatchedSupplier[];
@@ -44,17 +45,21 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
   const [animating, setAnimating] = useState(true);
   const [sortBy, setSortBy] = useState<SortOption>("score");
   const [stockOnly, setStockOnly] = useState(false);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
 
   const filtered = useMemo(() => {
-    let list = stockOnly ? matches.filter((m) => m.inStock) : [...matches];
+    let list = [...matches];
+    if (stockOnly) list = list.filter((m) => m.inStock);
+    if (verifiedOnly) list = list.filter((m) => tierRank(m.tier) >= 2); // Silver+
     switch (sortBy) {
       case "price-asc": list.sort((a, b) => a.pricePerUnit - b.pricePerUnit); break;
       case "price-desc": list.sort((a, b) => b.pricePerUnit - a.pricePerUnit); break;
       case "delivery-asc": list.sort((a, b) => a.leadTimeDays - b.leadTimeDays); break;
+      case "tier": list.sort((a, b) => tierRank(b.tier) - tierRank(a.tier) || b.matchScore - a.matchScore); break;
       default: list.sort((a, b) => b.matchScore - a.matchScore);
     }
     return list;
-  }, [matches, sortBy, stockOnly]);
+  }, [matches, sortBy, stockOnly, verifiedOnly]);
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimating(false), 1500);
@@ -102,6 +107,7 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="score">Best Match</SelectItem>
+            <SelectItem value="tier">Verification Tier</SelectItem>
             <SelectItem value="price-asc">Price: Low → High</SelectItem>
             <SelectItem value="price-desc">Price: High → Low</SelectItem>
             <SelectItem value="delivery-asc">Fastest Delivery</SelectItem>
@@ -110,6 +116,12 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
         <div className="flex items-center gap-1.5">
           <Checkbox id="stock-filter" checked={stockOnly} onCheckedChange={(c) => setStockOnly(!!c)} />
           <Label htmlFor="stock-filter" className="text-xs cursor-pointer">In Stock Only</Label>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Checkbox id="verified-filter" checked={verifiedOnly} onCheckedChange={(c) => setVerifiedOnly(!!c)} />
+          <Label htmlFor="verified-filter" className="text-xs cursor-pointer flex items-center gap-1">
+            <BadgeCheck className="h-3 w-3 text-primary" /> Silver+ Verified Only
+          </Label>
         </div>
         <Badge variant="outline" className="text-xs ml-auto">{filtered.length} result{filtered.length !== 1 ? "s" : ""}</Badge>
       </div>
@@ -125,10 +137,15 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
             <div className="flex items-center gap-4">
               <ScoreRing score={filtered[0].matchScore} />
               <div className="flex-1 min-w-0">
-                <h3 className="font-display font-semibold text-foreground text-lg">{filtered[0].supplierName}</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-display font-semibold text-foreground text-lg">{filtered[0].supplierName}</h3>
+                  <Badge variant="outline" className={`${filtered[0].tierColor} text-[10px] gap-1`}>
+                    <Award className="h-3 w-3" /> {filtered[0].tierLabel}
+                  </Badge>
+                </div>
                 <div className="flex flex-wrap gap-1.5 mt-1">
-                  {filtered[0].reasons.map((r) => (
-                    <Badge key={r} variant="secondary" className="text-xs">{r}</Badge>
+                  {filtered[0].perkLabels.map((p) => (
+                    <Badge key={p} variant="secondary" className="text-[10px]">{p}</Badge>
                   ))}
                 </div>
               </div>
@@ -152,8 +169,11 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
                 </div>
                 <ScoreRing score={m.matchScore} />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h4 className="font-display font-semibold text-foreground truncate">{m.supplierName}</h4>
+                    <Badge variant="outline" className={`${m.tierColor} text-[10px] gap-1 shrink-0`}>
+                      <Award className="h-2.5 w-2.5" /> {m.tierLabel}
+                    </Badge>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger>
@@ -165,11 +185,13 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
                     <span className="flex items-center gap-0.5"><MapPin className="h-3 w-3" /> {m.supplierCity}</span>
                     <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" /> {m.leadTimeDays}d</span>
                     <span className="flex items-center gap-0.5"><IndianRupee className="h-3 w-3" /> {m.pricePerUnit}/{m.unit}</span>
                     {m.inStock && <Badge className="bg-success/10 text-success border-success/20 text-[10px] h-4">In Stock</Badge>}
+                    {m.perks.escrowFeePct === 0 && <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] h-4">0% escrow</Badge>}
+                    {m.perks.bnplEligible && <Badge variant="outline" className="text-[10px] h-4">BNPL</Badge>}
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setExpanded(expanded === m.supplierId ? null : m.supplierId)}>
@@ -182,11 +204,22 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" /> Score Breakdown
                   </p>
-                  <BreakdownBar label="Trust" value={m.breakdown.trustWeight} max={35} icon={Shield} />
-                  <BreakdownBar label="Price" value={m.breakdown.priceWeight} max={30} icon={IndianRupee} />
-                  <BreakdownBar label="Delivery" value={m.breakdown.deliveryWeight} max={20} icon={Clock} />
-                  <BreakdownBar label="Stock" value={m.breakdown.availabilityBonus} max={8} icon={Package} />
+                  <BreakdownBar label="Trust" value={m.breakdown.trustWeight} max={28} icon={Shield} />
+                  <BreakdownBar label="Verified" value={m.breakdown.verificationWeight} max={15} icon={BadgeCheck} />
+                  <BreakdownBar label="Price" value={m.breakdown.priceWeight} max={25} icon={IndianRupee} />
+                  <BreakdownBar label="Delivery" value={m.breakdown.deliveryWeight} max={18} icon={Clock} />
+                  <BreakdownBar label="Stock" value={m.breakdown.availabilityBonus} max={7} icon={Package} />
                   <BreakdownBar label="Category" value={m.breakdown.categoryBonus} max={7} icon={Sparkles} />
+                  <div className="rounded-md bg-muted/40 p-2 mt-2">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
+                      <Award className="h-3 w-3" /> {m.tierLabel} perks
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {m.perkLabels.map((p) => (
+                        <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>
+                      ))}
+                    </div>
+                  </div>
                   <div className="flex flex-wrap gap-1 mt-2">
                     {m.reasons.map((r) => (
                       <Badge key={r} variant="secondary" className="text-[10px]">{r}</Badge>
