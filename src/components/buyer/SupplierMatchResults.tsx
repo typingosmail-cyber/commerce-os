@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { MatchedSupplier } from "@/lib/supplier-matching";
-import { Sparkles, Shield, Clock, IndianRupee, Package, MapPin, ChevronDown, ChevronUp, Zap, TrendingUp, Filter } from "lucide-react";
+import { tierRank } from "@/lib/supplier-tiers";
+import { Sparkles, Shield, Clock, IndianRupee, Package, MapPin, ChevronDown, ChevronUp, Zap, TrendingUp, Filter, Award, BadgeCheck } from "lucide-react";
 
-type SortOption = "score" | "price-asc" | "price-desc" | "delivery-asc";
+type SortOption = "score" | "price-asc" | "price-desc" | "delivery-asc" | "tier";
 
 interface Props {
   matches: MatchedSupplier[];
@@ -44,17 +45,21 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
   const [animating, setAnimating] = useState(true);
   const [sortBy, setSortBy] = useState<SortOption>("score");
   const [stockOnly, setStockOnly] = useState(false);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
 
   const filtered = useMemo(() => {
-    let list = stockOnly ? matches.filter((m) => m.inStock) : [...matches];
+    let list = [...matches];
+    if (stockOnly) list = list.filter((m) => m.inStock);
+    if (verifiedOnly) list = list.filter((m) => tierRank(m.tier) >= 2); // Silver+
     switch (sortBy) {
       case "price-asc": list.sort((a, b) => a.pricePerUnit - b.pricePerUnit); break;
       case "price-desc": list.sort((a, b) => b.pricePerUnit - a.pricePerUnit); break;
       case "delivery-asc": list.sort((a, b) => a.leadTimeDays - b.leadTimeDays); break;
+      case "tier": list.sort((a, b) => tierRank(b.tier) - tierRank(a.tier) || b.matchScore - a.matchScore); break;
       default: list.sort((a, b) => b.matchScore - a.matchScore);
     }
     return list;
-  }, [matches, sortBy, stockOnly]);
+  }, [matches, sortBy, stockOnly, verifiedOnly]);
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimating(false), 1500);
@@ -102,6 +107,7 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="score">Best Match</SelectItem>
+            <SelectItem value="tier">Verification Tier</SelectItem>
             <SelectItem value="price-asc">Price: Low → High</SelectItem>
             <SelectItem value="price-desc">Price: High → Low</SelectItem>
             <SelectItem value="delivery-asc">Fastest Delivery</SelectItem>
@@ -110,6 +116,12 @@ export function SupplierMatchResults({ matches, onClose }: Props) {
         <div className="flex items-center gap-1.5">
           <Checkbox id="stock-filter" checked={stockOnly} onCheckedChange={(c) => setStockOnly(!!c)} />
           <Label htmlFor="stock-filter" className="text-xs cursor-pointer">In Stock Only</Label>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Checkbox id="verified-filter" checked={verifiedOnly} onCheckedChange={(c) => setVerifiedOnly(!!c)} />
+          <Label htmlFor="verified-filter" className="text-xs cursor-pointer flex items-center gap-1">
+            <BadgeCheck className="h-3 w-3 text-primary" /> Silver+ Verified Only
+          </Label>
         </div>
         <Badge variant="outline" className="text-xs ml-auto">{filtered.length} result{filtered.length !== 1 ? "s" : ""}</Badge>
       </div>
