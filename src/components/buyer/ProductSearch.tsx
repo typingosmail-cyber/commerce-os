@@ -10,9 +10,10 @@ import { MOCK_CATALOG, PRODUCT_CATEGORIES } from "@/lib/mock-data";
 import { CatalogProduct } from "@/lib/types";
 import { GetBestPriceModal } from "./GetBestPriceModal";
 import { toggleWishlist, isInWishlist, toggleCompare, isInCompare } from "@/lib/wishlist";
+import { getSupplierTier, tierRank, getTierPerks, type BadgeTier } from "@/lib/supplier-tiers";
 import {
   Search, MapPin, Shield, Clock, Filter, ShoppingCart, Sparkles, Store,
-  Heart, GitCompareArrows, SlidersHorizontal, X, Star,
+  Heart, GitCompareArrows, SlidersHorizontal, X, Star, Award, BadgeCheck,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -36,6 +37,7 @@ export function ProductSearch({ onCreateRFQ }: Props) {
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState([0, 10000]);
   const [minRating, setMinRating] = useState(0);
+  const [minTier, setMinTier] = useState<BadgeTier | "any">("any");
   const [sortBy, setSortBy] = useState("relevance");
   const [wishlistState, setWishlistState] = useState<Record<string, boolean>>({});
   const [compareState, setCompareState] = useState<Record<string, boolean>>({});
@@ -53,17 +55,29 @@ export function ProductSearch({ onCreateRFQ }: Props) {
 
   const maxPrice = Math.max(...MOCK_CATALOG.map((p) => p.pricePerUnit));
 
+  const minTierRank = minTier === "any" ? -1 : tierRank(minTier);
+
   let filtered = MOCK_CATALOG.filter((p) => {
     const matchesQuery = !query || p.name.toLowerCase().includes(query.toLowerCase()) || p.supplierName.toLowerCase().includes(query.toLowerCase()) || p.description.toLowerCase().includes(query.toLowerCase());
     const matchesCat = category === "all" || p.category === category;
     const matchesStock = !stockOnly || p.inStock;
     const matchesPrice = p.pricePerUnit >= priceRange[0] && p.pricePerUnit <= priceRange[1];
     const matchesRating = p.supplierScore >= minRating;
-    return matchesQuery && matchesCat && matchesStock && matchesPrice && matchesRating;
+    const matchesTier = minTierRank < 0 || tierRank(getSupplierTier(p.supplierScore).tier) >= minTierRank;
+    return matchesQuery && matchesCat && matchesStock && matchesPrice && matchesRating && matchesTier;
   });
 
-  // Sort
-  if (sortBy === "price-asc") filtered = [...filtered].sort((a, b) => a.pricePerUnit - b.pricePerUnit);
+  // Default ("relevance") sort: prioritize verification tier, then trust score —
+  // higher badges always surface first.
+  if (sortBy === "relevance") {
+    filtered = [...filtered].sort((a, b) => {
+      const tierDiff = tierRank(getSupplierTier(b.supplierScore).tier) - tierRank(getSupplierTier(a.supplierScore).tier);
+      if (tierDiff !== 0) return tierDiff;
+      return b.supplierScore - a.supplierScore;
+    });
+  }
+  else if (sortBy === "tier") filtered = [...filtered].sort((a, b) => tierRank(getSupplierTier(b.supplierScore).tier) - tierRank(getSupplierTier(a.supplierScore).tier) || b.supplierScore - a.supplierScore);
+  else if (sortBy === "price-asc") filtered = [...filtered].sort((a, b) => a.pricePerUnit - b.pricePerUnit);
   else if (sortBy === "price-desc") filtered = [...filtered].sort((a, b) => b.pricePerUnit - a.pricePerUnit);
   else if (sortBy === "rating") filtered = [...filtered].sort((a, b) => b.supplierScore - a.supplierScore);
   else if (sortBy === "lead-time") filtered = [...filtered].sort((a, b) => a.leadTimeDays - b.leadTimeDays);
@@ -82,7 +96,7 @@ export function ProductSearch({ onCreateRFQ }: Props) {
     }
   };
 
-  const activeFilters = (category !== "all" ? 1 : 0) + (stockOnly ? 1 : 0) + (priceRange[0] > 0 || priceRange[1] < maxPrice ? 1 : 0) + (minRating > 0 ? 1 : 0);
+  const activeFilters = (category !== "all" ? 1 : 0) + (stockOnly ? 1 : 0) + (priceRange[0] > 0 || priceRange[1] < maxPrice ? 1 : 0) + (minRating > 0 ? 1 : 0) + (minTier !== "any" ? 1 : 0);
 
   return (
     <div className="space-y-5">
