@@ -225,11 +225,25 @@ export function ProductSearch({ onCreateRFQ }: Props) {
 
       {/* Product grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filtered.map((p) => (
-          <Card key={p.id} className="hover:shadow-md transition-shadow group">
+        {filtered.map((p) => {
+          const tierDef = getSupplierTier(p.supplierScore);
+          const perks = getTierPerks(tierDef.tier);
+          const isPriority = tierRank(tierDef.tier) >= 3; // Gold or Platinum
+          return (
+          <Card key={p.id} className={`hover:shadow-md transition-shadow group relative ${isPriority ? "border-primary/40 ring-1 ring-primary/10" : ""}`}>
+            {isPriority && (
+              <div className="absolute -top-2 left-4 px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center gap-1 shadow-sm">
+                <Award className="h-3 w-3" /> Priority Listing
+              </div>
+            )}
             <CardContent className="p-5">
               <div className="flex justify-between items-start mb-3">
-                <Badge variant="outline" className="text-xs">{p.category}</Badge>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Badge variant="outline" className="text-xs">{p.category}</Badge>
+                  <Badge variant="outline" className={`${tierDef.color} text-[10px] gap-1`}>
+                    <Award className="h-2.5 w-2.5" /> {tierDef.label}
+                  </Badge>
+                </div>
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleWishlist(p)}>
                     <Heart className={`h-3.5 w-3.5 ${wishlistState[p.id] ? "fill-current text-destructive" : "text-muted-foreground"}`} />
@@ -255,6 +269,21 @@ export function ProductSearch({ onCreateRFQ }: Props) {
                 <span className="flex items-center gap-1 text-muted-foreground">
                   <Clock className="h-3.5 w-3.5" /> {p.leadTimeDays}d
                 </span>
+              </div>
+
+              {/* Trust friction perks unlocked by this supplier's tier */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                {perks.escrowFeePct === 0 ? (
+                  <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">0% escrow fee</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px]">{perks.escrowFeePct}% escrow</Badge>
+                )}
+                <Badge variant="outline" className="text-[10px]">
+                  Reply ≤{perks.responseSlaHours}h
+                </Badge>
+                {perks.bnplEligible && <Badge variant="outline" className="text-[10px]">BNPL eligible</Badge>}
+                {perks.guaranteeCovered && <Badge variant="outline" className="text-[10px]">Deal Guarantee</Badge>}
+                {perks.prepayRequired && <Badge variant="outline" className="text-[10px] text-warning border-warning/30">Advance pay</Badge>}
               </div>
 
               <div className="flex items-center justify-between mt-4 pt-3 border-t">
