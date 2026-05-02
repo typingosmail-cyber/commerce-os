@@ -111,7 +111,8 @@ export function ProductSearch({ onCreateRFQ }: Props) {
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="relevance">Relevance</SelectItem>
+            <SelectItem value="relevance">Relevance (Verified First)</SelectItem>
+            <SelectItem value="tier">Verification Tier</SelectItem>
             <SelectItem value="price-asc">Price: Low to High</SelectItem>
             <SelectItem value="price-desc">Price: High to Low</SelectItem>
             <SelectItem value="rating">Highest Rated</SelectItem>
@@ -177,13 +178,31 @@ export function ProductSearch({ onCreateRFQ }: Props) {
               />
             </div>
 
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block flex items-center gap-1">
+                <BadgeCheck className="h-3 w-3" /> Min. Verification Tier
+              </label>
+              <Select value={minTier} onValueChange={(v) => setMinTier(v as BadgeTier | "any")}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any tier</SelectItem>
+                  <SelectItem value="bronze">Bronze+</SelectItem>
+                  <SelectItem value="silver">Silver+</SelectItem>
+                  <SelectItem value="gold">Gold+</SelectItem>
+                  <SelectItem value="platinum">Platinum only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex flex-col gap-2">
               <label className="text-xs font-medium text-muted-foreground">Quick Filters</label>
               <Button variant={stockOnly ? "default" : "outline"} size="sm" onClick={() => setStockOnly(!stockOnly)}>
                 In Stock Only
               </Button>
               <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => {
-                setCategory("all"); setStockOnly(false); setPriceRange([0, maxPrice]); setMinRating(0);
+                setCategory("all"); setStockOnly(false); setPriceRange([0, maxPrice]); setMinRating(0); setMinTier("any");
               }}>
                 <X className="h-3 w-3 mr-1" /> Clear All
               </Button>
