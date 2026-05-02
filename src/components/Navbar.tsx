@@ -8,7 +8,7 @@ import { AuthModal } from "@/components/AuthModal";
 import {
   Search, ShoppingCart, Menu, X, MessageCircle,
   Grid3X3, Building2, ChevronDown, Heart, Crown, Shield, Brain,
-  LogOut, IndianRupee, ArrowRightLeft, Wallet, Truck, BarChart3, CreditCard,
+  LogOut, IndianRupee, ArrowRightLeft, Wallet, Truck, BarChart3, CreditCard, ShieldAlert,
 } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import {
@@ -199,6 +199,9 @@ export function Navbar() {
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/supplier/verification")}>
                       <Shield className="h-4 w-4 mr-2" /> Verification & Badges
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/admin/fraud")}>
+                      <ShieldAlert className="h-4 w-4 mr-2" /> Fraud Detection
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/creator/dashboard")}>
                       <Crown className="h-4 w-4 mr-2" /> Creator Dashboard
