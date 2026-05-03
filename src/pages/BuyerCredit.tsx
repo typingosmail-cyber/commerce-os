@@ -460,6 +460,14 @@ export default function BuyerCredit() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Audit trail */}
+          <TabsContent value="audit" className="mt-4 space-y-4">
+            <AuditTrailPanel
+              entries={auditTrail}
+              currentLimit={profile.approvedLimit}
+            />
+          </TabsContent>
         </Tabs>
       </main>
       <Footer />
