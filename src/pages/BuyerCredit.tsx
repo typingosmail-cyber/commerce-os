@@ -37,6 +37,11 @@ export default function BuyerCredit() {
   const [orderAmount, setOrderAmount] = useState(150000);
   const [tenure, setTenure] = useState<30 | 60 | 90>(60);
   const sim = simulateOrder(profile, orderAmount, tenure);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const schedules = useMemo(
+    () => Object.fromEntries(profile.creditLines.map((cl) => [cl.id, generateSchedule(cl)])),
+    [profile],
+  );
 
   const utilization = profile.approvedLimit > 0 ? (profile.utilized / profile.approvedLimit) * 100 : 0;
 
