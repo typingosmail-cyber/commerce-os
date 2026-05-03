@@ -133,6 +133,7 @@ export default function BuyerCredit() {
             <TabsTrigger value="simulate">Quick Drawdown</TabsTrigger>
             <TabsTrigger value="active">Active Lines</TabsTrigger>
             <TabsTrigger value="grow">Grow Limit</TabsTrigger>
+            <TabsTrigger value="audit">Audit Trail</TabsTrigger>
           </TabsList>
 
           {/* Score breakdown */}
