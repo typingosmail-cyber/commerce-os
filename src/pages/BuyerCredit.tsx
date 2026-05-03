@@ -279,7 +279,7 @@ export default function BuyerCredit() {
                       const next = nextDueInstallment(schedule);
                       const isOpen = expanded[cl.id];
                       return (
-                        <>
+                        <React.Fragment key={cl.id}>
                           <TableRow key={cl.id} className="cursor-pointer" onClick={() => setExpanded((p) => ({ ...p, [cl.id]: !p[cl.id] }))}>
                             <TableCell>
                               {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
