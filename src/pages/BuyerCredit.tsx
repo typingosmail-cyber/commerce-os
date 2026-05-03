@@ -13,10 +13,11 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/lib/auth-context";
-import { mockProfile, simulateOrder, aprFor, computeLimit, generateSchedule, nextDueInstallment } from "@/lib/bnpl";
+import { mockProfile, simulateOrder, aprFor, computeLimit, generateSchedule, nextDueInstallment, generateAuditTrail, summarizeAuditTrail, auditEventMeta, type CreditLimitAuditEntry } from "@/lib/bnpl";
 import {
   CreditCard, TrendingUp, ShieldCheck, Clock, Sparkles, AlertTriangle,
   ArrowUpRight, Wallet, Calculator, Award, ChevronDown, ChevronRight, CalendarDays,
+  TrendingDown, CheckCircle2, Trophy, AlertOctagon, BadgeCheck, UserCog, History, Download, ArrowDownRight,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -42,6 +43,7 @@ export default function BuyerCredit() {
     () => Object.fromEntries(profile.creditLines.map((cl) => [cl.id, generateSchedule(cl)])),
     [profile],
   );
+  const auditTrail = useMemo(() => generateAuditTrail(profile), [profile]);
 
   const utilization = profile.approvedLimit > 0 ? (profile.utilized / profile.approvedLimit) * 100 : 0;
 
@@ -133,6 +135,7 @@ export default function BuyerCredit() {
             <TabsTrigger value="simulate">Quick Drawdown</TabsTrigger>
             <TabsTrigger value="active">Active Lines</TabsTrigger>
             <TabsTrigger value="grow">Grow Limit</TabsTrigger>
+            <TabsTrigger value="audit">Audit Trail</TabsTrigger>
           </TabsList>
 
           {/* Score breakdown */}
@@ -458,6 +461,14 @@ export default function BuyerCredit() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Audit trail */}
+          <TabsContent value="audit" className="mt-4 space-y-4">
+            <AuditTrailPanel
+              entries={auditTrail}
+              currentLimit={profile.approvedLimit}
+            />
+          </TabsContent>
         </Tabs>
       </main>
       <Footer />
@@ -471,5 +482,202 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
       <span>{label}</span>
       <span className={bold ? "text-foreground" : "text-foreground"}>{value}</span>
     </div>
+  );
+}
+
+const EVENT_ICON_MAP = {
+  Sparkles, TrendingUp, TrendingDown, CheckCircle2, AlertTriangle,
+  Trophy, CalendarDays, ShieldCheck, AlertOctagon, BadgeCheck, UserCog,
+} as const;
+
+function AuditTrailPanel({ entries, currentLimit }: { entries: CreditLimitAuditEntry[]; currentLimit: number }) {
+  const [filter, setFilter] = useState<"all" | "positive" | "negative">("all");
+  const summary = useMemo(() => summarizeAuditTrail(entries), [entries]);
+
+  const filtered = entries.filter((e) =>
+    filter === "all" ? true : filter === "positive" ? e.delta > 0 : e.delta < 0,
+  );
+
+  const exportCsv = () => {
+    const header = ["Date", "Event", "Title", "Factor", "Before", "After", "Limit Before", "Limit After", "Delta", "Reference", "Actor"];
+    const rows = entries.map((e) => [
+      e.date, e.eventType, e.title, e.factor ?? "", e.factorBefore ?? "", e.factorAfter ?? "",
+      e.limitBefore, e.limitAfter, e.delta, e.reference ?? "", e.actor,
+    ]);
+    const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `credit-audit-trail.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Audit trail exported", description: `${entries.length} events downloaded as CSV.` });
+  };
+
+  return (
+    <>
+      {/* Summary cards */}
+      <div className="grid md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Current Limit</span>
+              <CreditCard className="h-4 w-4 text-primary" />
+            </div>
+            <p className="text-2xl font-display font-bold text-foreground">{fmt(currentLimit)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{summary.events} events recorded</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-success/5 border-success/30">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Lifetime Uplift</span>
+              <ArrowUpRight className="h-4 w-4 text-success" />
+            </div>
+            <p className="text-2xl font-display font-bold text-success">+{fmt(summary.positive)}</p>
+            <p className="text-xs text-muted-foreground mt-1">From {entries.filter((e) => e.delta > 0).length} positive events</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-destructive/5 border-destructive/30">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Lifetime Reductions</span>
+              <ArrowDownRight className="h-4 w-4 text-destructive" />
+            </div>
+            <p className="text-2xl font-display font-bold text-destructive">−{fmt(summary.negative)}</p>
+            <p className="text-xs text-muted-foreground mt-1">From {entries.filter((e) => e.delta < 0).length} negative events</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Net Movement</span>
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </div>
+            <p className="text-2xl font-display font-bold text-foreground">
+              {summary.positive - summary.negative >= 0 ? "+" : "−"}{fmt(Math.abs(summary.positive - summary.negative))}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Since initial approval</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Factor impact */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Impact by Factor</CardTitle>
+          <CardDescription>How each underwriting factor moved your limit over time.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {Object.entries(summary.factorImpact).length === 0 && (
+            <p className="text-sm text-muted-foreground">No factor-specific events yet.</p>
+          )}
+          {Object.entries(summary.factorImpact)
+            .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+            .map(([factor, delta]) => {
+              const positive = delta >= 0;
+              const max = Math.max(...Object.values(summary.factorImpact).map(Math.abs), 1);
+              const pct = (Math.abs(delta) / max) * 100;
+              return (
+                <div key={factor}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-medium text-foreground">{factor}</span>
+                    <span className={positive ? "text-success font-semibold" : "text-destructive font-semibold"}>
+                      {positive ? "+" : "−"}{fmt(Math.abs(delta))}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full ${positive ? "bg-success" : "bg-destructive"}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+        </CardContent>
+      </Card>
+
+      {/* Timeline */}
+      <Card>
+        <CardHeader className="flex-row items-start justify-between space-y-0">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <History className="h-4 w-4" /> Limit Change Timeline
+            </CardTitle>
+            <CardDescription>Every event that moved your approved credit limit, newest first.</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-md border overflow-hidden">
+              {(["all", "positive", "negative"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 py-1.5 text-xs capitalize transition-colors ${
+                    filter === f ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+            <Button size="sm" variant="outline" onClick={exportCsv}>
+              <Download className="h-3.5 w-3.5 mr-1.5" /> CSV
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="relative">
+            <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
+            <div className="space-y-5">
+              {filtered.map((e) => {
+                const meta = auditEventMeta(e.eventType);
+                const Icon = (EVENT_ICON_MAP as Record<string, typeof Sparkles>)[meta.icon] ?? Sparkles;
+                const positive = e.delta > 0;
+                const neutral = e.delta === 0;
+                const tone = neutral ? "bg-muted text-muted-foreground" : positive ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive";
+                return (
+                  <div key={e.id} className="relative pl-10">
+                    <div className={`absolute left-0 top-0 h-8 w-8 rounded-full flex items-center justify-center ring-4 ring-background ${tone}`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="rounded-lg border p-4">
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold text-foreground">{e.title}</span>
+                            <Badge variant="outline" className="text-[10px] capitalize">{e.actor}</Badge>
+                            {e.reference && (
+                              <Badge variant="secondary" className="text-[10px] font-mono">{e.reference}</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">{e.description}</p>
+                          {e.factor && e.factorBefore !== undefined && e.factorAfter !== undefined && (
+                            <div className="mt-2 flex items-center gap-2 text-xs">
+                              <Badge variant="outline" className="text-[10px]">{e.factor}</Badge>
+                              <span className="text-muted-foreground">
+                                {e.factorBefore} → <span className="font-semibold text-foreground">{e.factorAfter}</span>/100
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-sm font-bold ${neutral ? "text-foreground" : positive ? "text-success" : "text-destructive"}`}>
+                            {positive ? "+" : neutral ? "" : "−"}{fmt(Math.abs(e.delta))}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {fmt(e.limitBefore)} → {fmt(e.limitAfter)}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{e.date}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </>
   );
 }
