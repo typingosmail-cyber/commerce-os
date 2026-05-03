@@ -372,7 +372,7 @@ export default function BuyerCredit() {
                               </TableCell>
                             </TableRow>
                           )}
-                        </>
+                        </React.Fragment>
                       );
                     })}
                   </TableBody>
