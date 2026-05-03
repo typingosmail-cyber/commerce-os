@@ -26,6 +26,18 @@ export interface RepaymentEvent {
   type: "repayment" | "fee" | "interest";
 }
 
+export interface ScheduleInstallment {
+  installmentNo: number;
+  dueDate: string;
+  principal: number;
+  interest: number;
+  fee: number;
+  total: number;
+  remainingPrincipal: number;
+  status: "paid" | "due" | "upcoming" | "overdue";
+  daysUntilDue: number;
+}
+
 export interface BuyerCreditProfile {
   buyerId: string;
   trustScore: number; // 0-1000
