@@ -13,10 +13,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/lib/auth-context";
-import { mockProfile, simulateOrder, aprFor, computeLimit } from "@/lib/bnpl";
+import { mockProfile, simulateOrder, aprFor, computeLimit, generateSchedule, nextDueInstallment } from "@/lib/bnpl";
 import {
   CreditCard, TrendingUp, ShieldCheck, Clock, Sparkles, AlertTriangle,
-  ArrowUpRight, Wallet, Calculator, Award,
+  ArrowUpRight, Wallet, Calculator, Award, ChevronDown, ChevronRight, CalendarDays,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
