@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,10 +13,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/lib/auth-context";
-import { mockProfile, simulateOrder, aprFor, computeLimit } from "@/lib/bnpl";
+import { mockProfile, simulateOrder, aprFor, computeLimit, generateSchedule, nextDueInstallment } from "@/lib/bnpl";
 import {
   CreditCard, TrendingUp, ShieldCheck, Clock, Sparkles, AlertTriangle,
-  ArrowUpRight, Wallet, Calculator, Award,
+  ArrowUpRight, Wallet, Calculator, Award, ChevronDown, ChevronRight, CalendarDays,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -37,6 +37,11 @@ export default function BuyerCredit() {
   const [orderAmount, setOrderAmount] = useState(150000);
   const [tenure, setTenure] = useState<30 | 60 | 90>(60);
   const sim = simulateOrder(profile, orderAmount, tenure);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const schedules = useMemo(
+    () => Object.fromEntries(profile.creditLines.map((cl) => [cl.id, generateSchedule(cl)])),
+    [profile],
+  );
 
   const utilization = profile.approvedLimit > 0 ? (profile.utilized / profile.approvedLimit) * 100 : 0;
 
@@ -251,55 +256,125 @@ export default function BuyerCredit() {
           <TabsContent value="active" className="mt-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Credit Lines</CardTitle>
-                <CardDescription>Track outstanding principal and upcoming dues.</CardDescription>
+                <CardTitle className="text-lg">Credit Lines & Repayment Schedule</CardTitle>
+                <CardDescription>Auto-calculated installments based on tenure & disbursement date.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8"></TableHead>
                       <TableHead>Order</TableHead>
                       <TableHead>Supplier</TableHead>
-                      <TableHead>Principal</TableHead>
                       <TableHead>Outstanding</TableHead>
+                      <TableHead>Next Due</TableHead>
                       <TableHead>Tenure</TableHead>
-                      <TableHead>Due</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {profile.creditLines.map((cl) => (
-                      <TableRow key={cl.id}>
-                        <TableCell className="font-mono text-xs">{cl.orderRef}</TableCell>
-                        <TableCell>{cl.supplierName}</TableCell>
-                        <TableCell>{fmt(cl.principal)}</TableCell>
-                        <TableCell className="font-semibold">{fmt(cl.outstanding)}</TableCell>
-                        <TableCell>{cl.tenureDays}d</TableCell>
-                        <TableCell className="text-xs">{cl.dueDate}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              cl.status === "paid" ? "outline"
-                              : cl.status === "overdue" ? "destructive"
-                              : "secondary"
-                            }
-                            className="capitalize text-[10px]"
-                          >
-                            {cl.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {cl.status === "active" ? (
-                            <Button size="sm" variant="outline" onClick={() => toast({ title: "Repayment initiated", description: `${fmt(cl.outstanding)} debited from wallet.` })}>
-                              Repay
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
+                    {profile.creditLines.map((cl) => {
+                      const schedule = schedules[cl.id];
+                      const next = nextDueInstallment(schedule);
+                      const isOpen = expanded[cl.id];
+                      return (
+                        <React.Fragment key={cl.id}>
+                          <TableRow key={cl.id} className="cursor-pointer" onClick={() => setExpanded((p) => ({ ...p, [cl.id]: !p[cl.id] }))}>
+                            <TableCell>
+                              {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">{cl.orderRef}</TableCell>
+                            <TableCell>{cl.supplierName}</TableCell>
+                            <TableCell className="font-semibold">{fmt(cl.outstanding)}</TableCell>
+                            <TableCell className="text-xs">
+                              {next && cl.status === "active" ? (
+                                <div className="flex flex-col">
+                                  <span>{next.dueDate}</span>
+                                  <span className={`text-[10px] ${next.status === "overdue" ? "text-destructive" : next.status === "due" ? "text-warning" : "text-muted-foreground"}`}>
+                                    {next.daysUntilDue < 0 ? `${Math.abs(next.daysUntilDue)}d overdue` : `in ${next.daysUntilDue}d`}
+                                  </span>
+                                </div>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell>{cl.tenureDays}d</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  cl.status === "paid" ? "outline"
+                                  : cl.status === "overdue" ? "destructive"
+                                  : "secondary"
+                                }
+                                className="capitalize text-[10px]"
+                              >
+                                {cl.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                              {cl.status === "active" && next ? (
+                                <Button size="sm" variant="outline" onClick={() => toast({ title: "EMI paid", description: `${fmt(next.total)} debited for installment #${next.installmentNo}` })}>
+                                  Pay EMI
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                          {isOpen && (
+                            <TableRow key={`${cl.id}-schedule`} className="bg-muted/30 hover:bg-muted/30">
+                              <TableCell colSpan={8} className="p-4">
+                                <div className="flex items-center gap-2 mb-3 text-xs font-medium text-foreground">
+                                  <CalendarDays className="h-3.5 w-3.5" />
+                                  Repayment schedule · disbursed {cl.disbursedAt} · {cl.apr}% APR
+                                </div>
+                                <div className="rounded-md border bg-background overflow-hidden">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead className="h-9">#</TableHead>
+                                        <TableHead className="h-9">Due Date</TableHead>
+                                        <TableHead className="h-9">Principal</TableHead>
+                                        <TableHead className="h-9">Interest</TableHead>
+                                        <TableHead className="h-9">Fee</TableHead>
+                                        <TableHead className="h-9">Total EMI</TableHead>
+                                        <TableHead className="h-9">Remaining</TableHead>
+                                        <TableHead className="h-9">Status</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {schedule.map((inst) => (
+                                        <TableRow key={inst.installmentNo}>
+                                          <TableCell className="py-2 font-mono text-xs">{inst.installmentNo}</TableCell>
+                                          <TableCell className="py-2 text-xs">{inst.dueDate}</TableCell>
+                                          <TableCell className="py-2 text-xs">{fmt(inst.principal)}</TableCell>
+                                          <TableCell className="py-2 text-xs">{fmt(inst.interest)}</TableCell>
+                                          <TableCell className="py-2 text-xs">{fmt(inst.fee)}</TableCell>
+                                          <TableCell className="py-2 text-xs font-semibold">{fmt(inst.total)}</TableCell>
+                                          <TableCell className="py-2 text-xs text-muted-foreground">{fmt(inst.remainingPrincipal)}</TableCell>
+                                          <TableCell className="py-2">
+                                            <Badge
+                                              variant={
+                                                inst.status === "paid" ? "outline"
+                                                : inst.status === "overdue" ? "destructive"
+                                                : inst.status === "due" ? "default"
+                                                : "secondary"
+                                              }
+                                              className="capitalize text-[10px]"
+                                            >
+                                              {inst.status}
+                                            </Badge>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </TableCell>
+                            </TableRow>
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                        </React.Fragment>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
