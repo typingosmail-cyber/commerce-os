@@ -43,6 +43,7 @@ export default function BuyerCredit() {
     () => Object.fromEntries(profile.creditLines.map((cl) => [cl.id, generateSchedule(cl)])),
     [profile],
   );
+  const auditTrail = useMemo(() => generateAuditTrail(profile), [profile]);
 
   const utilization = profile.approvedLimit > 0 ? (profile.utilized / profile.approvedLimit) * 100 : 0;
 
