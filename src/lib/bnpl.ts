@@ -262,3 +262,223 @@ export function generateSchedule(line: CreditLine, today: Date = new Date()): Sc
 export function nextDueInstallment(schedule: ScheduleInstallment[]): ScheduleInstallment | undefined {
   return schedule.find((s) => s.status === "due" || s.status === "overdue" || s.status === "upcoming");
 }
+
+export type AuditEventType =
+  | "initial_approval"
+  | "trust_increase"
+  | "trust_decrease"
+  | "ontime_repayment"
+  | "late_repayment"
+  | "gmv_milestone"
+  | "tenure_milestone"
+  | "dispute_resolved"
+  | "dispute_opened"
+  | "verification_upgrade"
+  | "manual_review";
+
+export interface CreditLimitAuditEntry {
+  id: string;
+  date: string; // ISO date
+  eventType: AuditEventType;
+  title: string;
+  description: string;
+  factor?: string; // which factor changed
+  factorBefore?: number; // 0-100
+  factorAfter?: number;
+  limitBefore: number;
+  limitAfter: number;
+  delta: number; // +/- in INR
+  reference?: string; // order ref, dispute id, etc.
+  actor: "system" | "underwriter" | "buyer";
+}
+
+const EVENT_META: Record<AuditEventType, { icon: string; tone: "positive" | "negative" | "neutral" }> = {
+  initial_approval: { icon: "Sparkles", tone: "neutral" },
+  trust_increase: { icon: "TrendingUp", tone: "positive" },
+  trust_decrease: { icon: "TrendingDown", tone: "negative" },
+  ontime_repayment: { icon: "CheckCircle2", tone: "positive" },
+  late_repayment: { icon: "AlertTriangle", tone: "negative" },
+  gmv_milestone: { icon: "Trophy", tone: "positive" },
+  tenure_milestone: { icon: "CalendarDays", tone: "positive" },
+  dispute_resolved: { icon: "ShieldCheck", tone: "positive" },
+  dispute_opened: { icon: "AlertOctagon", tone: "negative" },
+  verification_upgrade: { icon: "BadgeCheck", tone: "positive" },
+  manual_review: { icon: "UserCog", tone: "neutral" },
+};
+
+export function auditEventMeta(t: AuditEventType) {
+  return EVENT_META[t];
+}
+
+export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAuditEntry[] {
+  const today = new Date();
+  const day = (d: number) => new Date(today.getTime() - d * 86400000).toISOString().slice(0, 10);
+  const trail: CreditLimitAuditEntry[] = [];
+
+  // Walk back from current limit, reconstructing approximate history
+  let limit = profile.approvedLimit;
+
+  const push = (e: Omit<CreditLimitAuditEntry, "id" | "limitBefore" | "limitAfter" | "delta"> & { delta: number }) => {
+    const limitBefore = limit - e.delta;
+    trail.push({
+      ...e,
+      id: `aud-${trail.length + 1}`,
+      limitBefore,
+      limitAfter: limit,
+    });
+    limit = limitBefore;
+  };
+
+  // Most recent first
+  push({
+    date: day(2),
+    eventType: "ontime_repayment",
+    title: "On-time repayment of ORD-8675",
+    description: "Repayment History factor improved after a ₹2,40,000 credit line was closed 3 days early.",
+    factor: "Repayment History",
+    factorBefore: 88,
+    factorAfter: 92,
+    delta: 50_000,
+    reference: "ORD-8675",
+    actor: "system",
+  });
+
+  push({
+    date: day(9),
+    eventType: "verification_upgrade",
+    title: "Verification tier upgraded to Gold",
+    description: "GST + bank statement cross-checks completed. Trust Score factor recomputed.",
+    factor: "Trust Score",
+    factorBefore: 68,
+    factorAfter: 72,
+    delta: 75_000,
+    reference: "VRF-2041",
+    actor: "underwriter",
+  });
+
+  push({
+    date: day(18),
+    eventType: "gmv_milestone",
+    title: `Crossed ₹${(profile.totalGmv / 100000).toFixed(0)}L cumulative GMV`,
+    description: "Transaction Volume factor increased after sustained quarter-over-quarter growth.",
+    factor: "Transaction Volume",
+    factorBefore: 42,
+    factorAfter: 55,
+    delta: 100_000,
+    actor: "system",
+  });
+
+  push({
+    date: day(34),
+    eventType: "dispute_opened",
+    title: "Dispute opened on ORD-8512",
+    description: "Quality dispute on fastener grade temporarily reduced Dispute Rate factor.",
+    factor: "Dispute Rate",
+    factorBefore: 96,
+    factorAfter: 90,
+    delta: -25_000,
+    reference: "DSP-118",
+    actor: "system",
+  });
+
+  push({
+    date: day(35),
+    eventType: "dispute_resolved",
+    title: "Dispute DSP-105 resolved in buyer's favor",
+    description: "Goodwill credit issued by supplier. No impact on buyer dispute ratio.",
+    factor: "Dispute Rate",
+    factorBefore: 92,
+    factorAfter: 96,
+    delta: 30_000,
+    reference: "DSP-105",
+    actor: "underwriter",
+  });
+
+  push({
+    date: day(52),
+    eventType: "ontime_repayment",
+    title: "On-time repayment of ORD-8401",
+    description: "Repaid ₹1,80,000 credit line on the due date.",
+    factor: "Repayment History",
+    factorBefore: 84,
+    factorAfter: 88,
+    delta: 40_000,
+    reference: "ORD-8401",
+    actor: "system",
+  });
+
+  push({
+    date: day(78),
+    eventType: "tenure_milestone",
+    title: "12 months active on platform",
+    description: "Account Tenure factor crossed the 1-year threshold.",
+    factor: "Account Tenure",
+    factorBefore: 50,
+    factorAfter: 60,
+    delta: 35_000,
+    actor: "system",
+  });
+
+  push({
+    date: day(96),
+    eventType: "late_repayment",
+    title: "Late repayment on ORD-8190",
+    description: "Repaid 4 days past due date. Repayment History factor adjusted downward.",
+    factor: "Repayment History",
+    factorBefore: 88,
+    factorAfter: 84,
+    delta: -45_000,
+    reference: "ORD-8190",
+    actor: "system",
+  });
+
+  push({
+    date: day(120),
+    eventType: "trust_increase",
+    title: "Trust Score rose by 40 points",
+    description: "Sustained quality ratings from 6 suppliers nudged the composite Trust Score upward.",
+    factor: "Trust Score",
+    factorBefore: 60,
+    factorAfter: 68,
+    delta: 60_000,
+    actor: "system",
+  });
+
+  push({
+    date: day(180),
+    eventType: "manual_review",
+    title: "Quarterly underwriter review",
+    description: "Risk team approved a discretionary uplift after reviewing supplier feedback and audited financials.",
+    delta: 80_000,
+    reference: "RVW-Q3",
+    actor: "underwriter",
+  });
+
+  // Initial approval — anchors the trail
+  trail.push({
+    id: `aud-${trail.length + 1}`,
+    date: day(420),
+    eventType: "initial_approval",
+    title: "Initial credit line approved",
+    description: "Underwriting completed using GST filings, bank statements & 3 months of platform activity.",
+    limitBefore: 0,
+    limitAfter: limit,
+    delta: limit,
+    actor: "underwriter",
+    reference: "UW-0001",
+  });
+
+  return trail;
+}
+
+export function summarizeAuditTrail(trail: CreditLimitAuditEntry[]) {
+  const positive = trail.filter((e) => e.delta > 0).reduce((a, e) => a + e.delta, 0);
+  const negative = trail.filter((e) => e.delta < 0).reduce((a, e) => a + Math.abs(e.delta), 0);
+  const events = trail.length;
+  const factorImpact: Record<string, number> = {};
+  for (const e of trail) {
+    if (!e.factor) continue;
+    factorImpact[e.factor] = (factorImpact[e.factor] ?? 0) + e.delta;
+  }
+  return { positive, negative, events, factorImpact };
+}
