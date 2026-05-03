@@ -204,3 +204,61 @@ export function simulateOrder(profile: BuyerCreditProfile, amount: number, tenur
     emi,
   };
 }
+
+export function generateSchedule(line: CreditLine, today: Date = new Date()): ScheduleInstallment[] {
+  const installments = Math.max(1, line.tenureDays / 30);
+  const disbursed = new Date(line.disbursedAt);
+  const principalPerInstallment = line.principal / installments;
+  // Repaid principal so far (principal - outstanding) — distribute across earliest installments
+  let repaidPrincipal = line.principal - line.outstanding;
+  const platformFeeTotal = Math.round(line.principal * 0.005);
+  const feePerInstallment = platformFeeTotal / installments;
+
+  const schedule: ScheduleInstallment[] = [];
+  let remaining = line.principal;
+
+  for (let i = 1; i <= installments; i++) {
+    const dueDate = new Date(disbursed);
+    dueDate.setDate(dueDate.getDate() + i * 30);
+    // Interest: monthly accrual on remaining principal at start of period
+    const interest = (remaining * line.apr * 30) / (100 * 365);
+    const principalThis = principalPerInstallment;
+    const total = principalThis + interest + feePerInstallment;
+
+    let status: ScheduleInstallment["status"];
+    const daysUntilDue = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
+
+    if (repaidPrincipal >= principalThis - 0.01) {
+      status = "paid";
+      repaidPrincipal -= principalThis;
+    } else if (line.status === "paid") {
+      status = "paid";
+    } else if (daysUntilDue < 0) {
+      status = "overdue";
+    } else if (daysUntilDue <= 7) {
+      status = "due";
+    } else {
+      status = "upcoming";
+    }
+
+    remaining -= principalThis;
+
+    schedule.push({
+      installmentNo: i,
+      dueDate: dueDate.toISOString().slice(0, 10),
+      principal: Math.round(principalThis),
+      interest: Math.round(interest),
+      fee: Math.round(feePerInstallment),
+      total: Math.round(total),
+      remainingPrincipal: Math.max(0, Math.round(remaining)),
+      status,
+      daysUntilDue,
+    });
+  }
+
+  return schedule;
+}
+
+export function nextDueInstallment(schedule: ScheduleInstallment[]): ScheduleInstallment | undefined {
+  return schedule.find((s) => s.status === "due" || s.status === "overdue" || s.status === "upcoming");
+}
