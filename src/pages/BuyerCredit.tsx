@@ -506,6 +506,11 @@ export default function BuyerCredit() {
             </Card>
           </TabsContent>
 
+          {/* Limit increase / new credit line requests */}
+          <TabsContent value="request" className="mt-4 space-y-4">
+            <LimitRequestPanel profile={profile} />
+          </TabsContent>
+
           {/* Audit trail */}
           <TabsContent value="audit" className="mt-4 space-y-4">
             <AuditTrailPanel
