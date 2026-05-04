@@ -724,3 +724,178 @@ function AuditTrailPanel({ entries, currentLimit }: { entries: CreditLimitAuditE
     </>
   );
 }
+
+const ACTION_META: Record<BuyerRiskAction, { label: string; icon: typeof Ban; tone: string; ring: string }> = {
+  monitor:      { label: "Monitoring",        icon: Activity,   tone: "text-muted-foreground", ring: "border-border bg-muted/40" },
+  reduce_limit: { label: "Limit Reduced",     icon: ArrowDownRight, tone: "text-yellow-700",   ring: "border-yellow-500/40 bg-yellow-500/10" },
+  freeze_new:   { label: "New Drawdowns Frozen", icon: Snowflake, tone: "text-orange-700",     ring: "border-orange-500/40 bg-orange-500/10" },
+  block:        { label: "Account Blocked",   icon: Ban,        tone: "text-destructive",      ring: "border-destructive/40 bg-destructive/10" },
+};
+
+const CATEGORY_ICON = {
+  repayment: Clock,
+  velocity: Gauge,
+  identity: Fingerprint,
+  device: Fingerprint,
+  dispute: Scale,
+  behavior: Activity,
+  exposure: TrendingUp,
+} as const;
+
+function RiskBanner({ risk }: { risk: BuyerRiskAssessment }) {
+  const meta = ACTION_META[risk.action];
+  const Icon = meta.icon;
+  return (
+    <div className={`rounded-lg border p-4 flex items-start gap-3 ${meta.ring}`}>
+      <Icon className={`h-5 w-5 mt-0.5 shrink-0 ${meta.tone}`} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-sm font-semibold ${meta.tone}`}>{meta.label}</span>
+          <Badge variant="outline" className="text-[10px]">Risk score {risk.riskScore}/100</Badge>
+          <Badge variant="outline" className="text-[10px]">{risk.signals.length} signal{risk.signals.length === 1 ? "" : "s"}</Badge>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">{risk.rationale}</p>
+      </div>
+    </div>
+  );
+}
+
+function RiskPanel({ risk, approvedLimit }: { risk: BuyerRiskAssessment; approvedLimit: number }) {
+  const meta = ACTION_META[risk.action];
+  return (
+    <>
+      <div className="grid md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Risk Score</span>
+              <ShieldAlert className="h-4 w-4 text-primary" />
+            </div>
+            <p className="text-2xl font-display font-bold text-foreground">{risk.riskScore}<span className="text-sm text-muted-foreground">/100</span></p>
+            <Progress value={risk.riskScore} className="h-1.5 mt-2" />
+          </CardContent>
+        </Card>
+        <Card className={meta.ring}>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Action</span>
+              <meta.icon className={`h-4 w-4 ${meta.tone}`} />
+            </div>
+            <p className={`text-lg font-display font-bold ${meta.tone}`}>{meta.label}</p>
+            <p className="text-[11px] text-muted-foreground mt-1 capitalize">Rule outcome: {risk.action.replace("_", " ")}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Limit Reduction</span>
+              <ArrowDownRight className="h-4 w-4 text-destructive" />
+            </div>
+            <p className="text-2xl font-display font-bold text-destructive">−{fmt(risk.totalReductionInr)}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Applied to approved limit of {fmt(approvedLimit)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Effective Limit</span>
+              <ShieldCheck className="h-4 w-4 text-success" />
+            </div>
+            <p className="text-2xl font-display font-bold text-foreground">{fmt(risk.effectiveLimit)}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">After all risk rules applied</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4" /> Triggered Risk Rules
+          </CardTitle>
+          <CardDescription>
+            Each rule that fires reduces the available limit, freezes new drawdowns, or blocks the account.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {risk.signals.length === 0 ? (
+            <div className="rounded-lg border border-success/30 bg-success/5 p-6 text-center">
+              <ShieldCheck className="h-8 w-8 text-success mx-auto mb-2" />
+              <p className="text-sm font-semibold text-foreground">No risk signals detected</p>
+              <p className="text-xs text-muted-foreground mt-1">Account is operating within all fraud and default-risk thresholds.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {risk.signals.map((s) => {
+                const Icon = CATEGORY_ICON[s.category] ?? AlertTriangle;
+                return (
+                  <div key={s.id} className={`rounded-lg border p-4 ${buyerRiskTone(s.severity)}`}>
+                    <div className="flex items-start gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-background/60 flex items-center justify-center shrink-0">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-foreground">{s.label}</span>
+                          <Badge variant="outline" className="text-[10px] uppercase">{s.severity}</Badge>
+                          <Badge variant="secondary" className="text-[10px] font-mono">{s.ruleId}</Badge>
+                          <Badge variant="outline" className="text-[10px] capitalize">{s.category}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{s.detail}</p>
+                        <div className="mt-2 flex items-center gap-3 text-[11px] flex-wrap">
+                          <span className="capitalize">
+                            Action: <span className="font-semibold text-foreground">{s.action.replace("_", " ")}</span>
+                          </span>
+                          {s.reductionInr > 0 && (
+                            <span>
+                              Limit impact: <span className="font-semibold text-destructive">−{fmt(s.reductionInr)}</span>
+                              <span className="text-muted-foreground"> ({s.reductionPct}%)</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Rule Reference</CardTitle>
+          <CardDescription>Buyer-side fraud & default-risk rules evaluated on every credit check.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 gap-2 text-xs">
+            {[
+              ["BR-001", "30+ days past due", "Block account"],
+              ["BR-002", "7+ days past due", "Freeze new drawdowns, −50%"],
+              ["BR-003/004", "Repeated late payments (90d)", "Reduce limit 15-30%"],
+              ["BR-005", "Recent default written off", "Freeze, −70%"],
+              ["BR-010/011", "Drawdown velocity spike", "Freeze / reduce 10-25%"],
+              ["BR-012", "Burst of new suppliers (7d)", "Reduce limit 10%"],
+              ["BR-020", "GSTIN re-verification failed", "Block account"],
+              ["BR-021", "Frequent device changes", "Reduce limit 20%"],
+              ["BR-022", "Foreign IP login", "Reduce limit 10%"],
+              ["BR-030/031", "Chargebacks / open disputes", "Freeze / reduce"],
+              ["BR-040", "Refund-then-redraw loop", "Freeze, −25%"],
+              ["BR-041", "Credit-check probing", "Monitor only"],
+              ["BR-050", "Exposure to flagged suppliers", "Reduce 15%"],
+              ["BR-051", "Limit nearly fully utilized", "Monitor only"],
+            ].map(([id, rule, action]) => (
+              <div key={id} className="flex items-center justify-between gap-3 p-2.5 rounded-md border">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Badge variant="secondary" className="text-[10px] font-mono shrink-0">{id}</Badge>
+                  <span className="text-foreground truncate">{rule}</span>
+                </div>
+                <span className="text-muted-foreground shrink-0 text-[11px]">{action}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
