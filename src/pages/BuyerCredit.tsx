@@ -113,14 +113,19 @@ export default function BuyerCredit() {
 
         {/* Hero stats */}
         <div className="grid md:grid-cols-4 gap-4">
-          <Card className="md:col-span-2 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
+          <Card className={`md:col-span-2 ${risk.action === "block" ? "bg-gradient-to-br from-destructive to-destructive/80" : risk.action === "freeze_new" ? "bg-gradient-to-br from-orange-600 to-orange-500" : "bg-gradient-to-br from-primary to-primary/80"} text-primary-foreground`}>
             <CardContent className="p-6">
               <p className="text-xs uppercase tracking-wider opacity-80 mb-2">Available Credit</p>
-              <p className="text-4xl font-display font-bold">{fmt(profile.available)}</p>
+              <p className="text-4xl font-display font-bold">{fmt(effectiveAvailable)}</p>
               <div className="mt-4 space-y-2">
                 <div className="flex justify-between text-xs opacity-90">
                   <span>Used {fmt(profile.utilized)}</span>
-                  <span>Limit {fmt(profile.approvedLimit)}</span>
+                  <span>
+                    Limit {fmt(effectiveLimit)}
+                    {effectiveLimit < profile.approvedLimit && (
+                      <span className="opacity-75 line-through ml-1">{fmt(profile.approvedLimit)}</span>
+                    )}
+                  </span>
                 </div>
                 <Progress value={utilization} className="h-2 bg-primary-foreground/20" />
               </div>
