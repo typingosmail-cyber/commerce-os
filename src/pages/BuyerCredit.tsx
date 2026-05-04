@@ -45,8 +45,14 @@ export default function BuyerCredit() {
     [profile],
   );
   const auditTrail = useMemo(() => generateAuditTrail(profile), [profile]);
+  const risk = useMemo(() => {
+    const metrics = mockBuyerRiskMetrics(profile);
+    return evaluateBuyerRisk(profile.buyerId, metrics, profile.approvedLimit);
+  }, [profile]);
 
-  const utilization = profile.approvedLimit > 0 ? (profile.utilized / profile.approvedLimit) * 100 : 0;
+  const effectiveLimit = risk.effectiveLimit;
+  const effectiveAvailable = Math.max(0, effectiveLimit - profile.utilized);
+  const utilization = effectiveLimit > 0 ? (profile.utilized / effectiveLimit) * 100 : 100;
 
   const projectedLimit = useMemo(() => {
     const future = profile.factors.map(f => ({ ...f, score: Math.min(100, f.score + 8) }));
@@ -54,6 +60,22 @@ export default function BuyerCredit() {
   }, [profile]);
 
   const requestDrawdown = () => {
+    if (risk.action === "block") {
+      toast({ title: "Drawdowns blocked", description: risk.rationale, variant: "destructive" });
+      return;
+    }
+    if (risk.action === "freeze_new") {
+      toast({ title: "New drawdowns frozen", description: risk.rationale, variant: "destructive" });
+      return;
+    }
+    if (orderAmount > effectiveAvailable) {
+      toast({
+        title: "Risk-adjusted limit exceeded",
+        description: `Available after risk reductions: ${fmt(effectiveAvailable)}.`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (!sim.eligible) {
       toast({ title: "Cannot draw down", description: sim.reason, variant: "destructive" });
       return;
