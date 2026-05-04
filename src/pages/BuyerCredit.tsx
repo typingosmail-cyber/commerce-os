@@ -21,6 +21,7 @@ import {
   ShieldAlert, Ban, Snowflake, Activity, Fingerprint, Gauge, Scale,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
 
 const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
@@ -173,6 +174,7 @@ export default function BuyerCredit() {
               )}
             </TabsTrigger>
             <TabsTrigger value="grow">Grow Limit</TabsTrigger>
+            <TabsTrigger value="request">Request Limit</TabsTrigger>
             <TabsTrigger value="audit">Audit Trail</TabsTrigger>
           </TabsList>
 
@@ -503,6 +505,11 @@ export default function BuyerCredit() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Limit increase / new credit line requests */}
+          <TabsContent value="request" className="mt-4 space-y-4">
+            <LimitRequestPanel profile={profile} />
           </TabsContent>
 
           {/* Audit trail */}

@@ -865,3 +865,227 @@ export function summarizeAuditTrail(trail: CreditLimitAuditEntry[]) {
   }
   return { positive, negative, events, factorImpact };
 }
+
+// ============================================================
+// Limit Increase / New Credit Line Request Workflow
+// ============================================================
+
+export type LimitRequestType = "limit_increase" | "new_credit_line";
+export type LimitRequestStatus = "draft" | "submitted" | "under_review" | "approved" | "rejected" | "more_info";
+
+export interface MilestoneCheck {
+  id: string;
+  label: string;
+  description: string;
+  required: number | string;
+  current: number | string;
+  passed: boolean;
+}
+
+export interface LimitRequest {
+  id: string;
+  buyerId: string;
+  type: LimitRequestType;
+  requestedAmount: number;        // for limit_increase: new total cap; for new_credit_line: the new line amount
+  currentLimit: number;
+  reason: string;
+  supportingDocs: string[];       // names only (mock)
+  status: LimitRequestStatus;
+  submittedAt: string;
+  decidedAt?: string;
+  reviewerNote?: string;
+  milestones: MilestoneCheck[];
+  eligible: boolean;
+  estimatedAprAfter: number;
+}
+
+export interface MilestoneEvaluation {
+  milestones: MilestoneCheck[];
+  passedCount: number;
+  totalCount: number;
+  eligible: boolean;
+  maxRequestable: number;
+  blockingReasons: string[];
+}
+
+const STORAGE_KEY = "vyapar_limit_requests";
+
+export function evaluateMilestones(profile: BuyerCreditProfile, type: LimitRequestType): MilestoneEvaluation {
+  const paidLines = profile.creditLines.filter((l) => l.status === "paid").length;
+  const overdueLines = profile.creditLines.filter((l) => l.status === "overdue").length;
+  const utilizationPct = profile.approvedLimit > 0
+    ? Math.round((profile.utilized / profile.approvedLimit) * 100)
+    : 0;
+
+  const baseRequirements = [
+    {
+      id: "ontime",
+      label: "On-time repayment rate ≥ 90%",
+      description: "Sustained repayment discipline across recent credit lines.",
+      required: "≥ 90%",
+      current: `${Math.round(profile.onTimeRate * 100)}%`,
+      passed: profile.onTimeRate >= 0.9,
+    },
+    {
+      id: "trust",
+      label: "Trust score ≥ 650",
+      description: "Composite reputation across delivery, quality & compliance.",
+      required: "≥ 650",
+      current: profile.trustScore,
+      passed: profile.trustScore >= 650,
+    },
+    {
+      id: "tenure",
+      label: "Account active ≥ 6 months",
+      description: "Minimum platform history for underwriting.",
+      required: "≥ 6 months",
+      current: `${profile.monthsActive} months`,
+      passed: profile.monthsActive >= 6,
+    },
+    {
+      id: "paid",
+      label: "≥ 2 fully repaid credit lines",
+      description: "Demonstrated full repayment cycles.",
+      required: "≥ 2",
+      current: paidLines,
+      passed: paidLines >= 2,
+    },
+    {
+      id: "no-overdue",
+      label: "No overdue installments",
+      description: "All current obligations within due date.",
+      required: "0",
+      current: overdueLines,
+      passed: overdueLines === 0,
+    },
+  ];
+
+  const extra: MilestoneCheck[] =
+    type === "limit_increase"
+      ? [{
+          id: "utilization",
+          label: "Utilization ≥ 40%",
+          description: "Show meaningful, healthy use of existing limit.",
+          required: "≥ 40%",
+          current: `${utilizationPct}%`,
+          passed: utilizationPct >= 40,
+        }]
+      : [{
+          id: "gmv",
+          label: "Cumulative GMV ≥ ₹15L",
+          description: "Sufficient transaction volume for an additional line.",
+          required: "≥ ₹15,00,000",
+          current: `₹${profile.totalGmv.toLocaleString("en-IN")}`,
+          passed: profile.totalGmv >= 15_00_000,
+        }];
+
+  const milestones = [...baseRequirements, ...extra];
+  const passedCount = milestones.filter((m) => m.passed).length;
+  const eligible = passedCount === milestones.length;
+
+  // Eligible cap: limit_increase up to 2.0× current; new_credit_line up to 0.6× current
+  const multiplier = type === "limit_increase" ? 2.0 : 0.6;
+  const maxRequestable = Math.max(25_000, Math.round((profile.approvedLimit * multiplier) / 5000) * 5000);
+
+  return {
+    milestones,
+    passedCount,
+    totalCount: milestones.length,
+    eligible,
+    maxRequestable,
+    blockingReasons: milestones.filter((m) => !m.passed).map((m) => m.label),
+  };
+}
+
+export function loadLimitRequests(buyerId: string): LimitRequest[] {
+  try {
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
+    if (!raw) return [];
+    const all = JSON.parse(raw) as LimitRequest[];
+    return all.filter((r) => r.buyerId === buyerId).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+  } catch {
+    return [];
+  }
+}
+
+function saveAllRequests(all: LimitRequest[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+}
+
+export function submitLimitRequest(input: {
+  buyerId: string;
+  type: LimitRequestType;
+  requestedAmount: number;
+  currentLimit: number;
+  reason: string;
+  supportingDocs: string[];
+  evaluation: MilestoneEvaluation;
+  trustScore: number;
+}): LimitRequest {
+  const now = new Date().toISOString();
+  const req: LimitRequest = {
+    id: `LR-${Date.now().toString(36).toUpperCase()}`,
+    buyerId: input.buyerId,
+    type: input.type,
+    requestedAmount: input.requestedAmount,
+    currentLimit: input.currentLimit,
+    reason: input.reason,
+    supportingDocs: input.supportingDocs,
+    status: input.evaluation.eligible ? "submitted" : "draft",
+    submittedAt: now,
+    milestones: input.evaluation.milestones,
+    eligible: input.evaluation.eligible,
+    estimatedAprAfter: aprFor(Math.min(1000, input.trustScore + (input.evaluation.eligible ? 30 : 0))),
+  };
+
+  // Auto-progress eligible requests through a mock review pipeline.
+  if (req.status === "submitted") {
+    req.status = "under_review";
+  }
+
+  const all = (() => {
+    try {
+      const raw = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
+      return raw ? (JSON.parse(raw) as LimitRequest[]) : [];
+    } catch { return []; }
+  })();
+  saveAllRequests([req, ...all]);
+  return req;
+}
+
+export function decideLimitRequest(id: string, decision: "approved" | "rejected" | "more_info", note?: string): LimitRequest | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const all = raw ? (JSON.parse(raw) as LimitRequest[]) : [];
+    const idx = all.findIndex((r) => r.id === id);
+    if (idx < 0) return null;
+    all[idx] = {
+      ...all[idx],
+      status: decision,
+      decidedAt: new Date().toISOString(),
+      reviewerNote: note ?? all[idx].reviewerNote,
+    };
+    saveAllRequests(all);
+    return all[idx];
+  } catch { return null; }
+}
+
+export function deleteLimitRequest(id: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const all = raw ? (JSON.parse(raw) as LimitRequest[]) : [];
+    saveAllRequests(all.filter((r) => r.id !== id));
+  } catch { /* noop */ }
+}
+
+export const LIMIT_REQUEST_STATUS_META: Record<LimitRequestStatus, { label: string; tone: string }> = {
+  draft:        { label: "Draft",        tone: "bg-muted text-muted-foreground border-border" },
+  submitted:    { label: "Submitted",    tone: "bg-secondary text-secondary-foreground border-border" },
+  under_review: { label: "Under Review", tone: "bg-yellow-500/15 text-yellow-700 border-yellow-500/30" },
+  approved:     { label: "Approved",     tone: "bg-success/15 text-success border-success/30" },
+  rejected:     { label: "Rejected",     tone: "bg-destructive/15 text-destructive border-destructive/30" },
+  more_info:    { label: "Needs Info",   tone: "bg-orange-500/15 text-orange-700 border-orange-500/30" },
+};
