@@ -471,6 +471,389 @@ export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAudi
   return trail;
 }
 
+// ============================================================
+// Buyer Fraud & Default-Risk Detection
+// ============================================================
+
+export type BuyerRiskSeverity = "info" | "low" | "medium" | "high" | "critical";
+export type BuyerRiskAction = "monitor" | "reduce_limit" | "freeze_new" | "block";
+export type BuyerRiskCategory =
+  | "repayment"
+  | "velocity"
+  | "identity"
+  | "device"
+  | "dispute"
+  | "behavior"
+  | "exposure";
+
+export interface BuyerRiskSignal {
+  id: string;
+  category: BuyerRiskCategory;
+  label: string;
+  detail: string;
+  severity: BuyerRiskSeverity;
+  /** Reduction applied to approved limit, in INR. 0 if non-financial. */
+  reductionInr: number;
+  /** Reduction expressed as % of approved limit (for display). */
+  reductionPct: number;
+  /** Suggested action for this single signal. */
+  action: BuyerRiskAction;
+  triggeredAt: string;
+  ruleId: string;
+}
+
+export interface BuyerRiskMetrics {
+  // Repayment behavior
+  latePaymentsLast90d: number;
+  daysPastDueMax: number; // worst overdue currently outstanding
+  rolling30dDefaultedAmount: number;
+  // Velocity
+  drawdownsLast24h: number;
+  drawdownsLast7d: number;
+  newSuppliersLast7d: number;
+  // Identity / device
+  deviceChangesLast30d: number;
+  ipCountryMismatches: number;
+  gstinReverifyFailed: boolean;
+  // Disputes
+  openDisputes: number;
+  chargebacksLast180d: number;
+  // Behavior
+  cartAbandonAfterCreditCheck: number;
+  refundedThenRedrawCount: number;
+  // Exposure
+  exposureToHighRiskSuppliers: number; // INR
+  utilizationPct: number; // 0-100 of approved limit
+}
+
+export interface BuyerRiskAssessment {
+  buyerId: string;
+  signals: BuyerRiskSignal[];
+  /** 0-100 composite risk score (higher = riskier). */
+  riskScore: number;
+  /** Final action applied across all signals. */
+  action: BuyerRiskAction;
+  /** Total INR reduction recommended (sum of signal reductions, capped at approvedLimit). */
+  totalReductionInr: number;
+  /** Effective available limit after reductions / blocks. */
+  effectiveLimit: number;
+  /** Human-readable summary of why. */
+  rationale: string;
+  evaluatedAt: string;
+}
+
+const RULE_TONE: Record<BuyerRiskSeverity, string> = {
+  info: "bg-muted text-muted-foreground border-border",
+  low: "bg-success/10 text-success border-success/30",
+  medium: "bg-yellow-500/15 text-yellow-700 border-yellow-500/30",
+  high: "bg-orange-500/15 text-orange-700 border-orange-500/30",
+  critical: "bg-destructive/15 text-destructive border-destructive/30",
+};
+
+export function buyerRiskTone(s: BuyerRiskSeverity): string {
+  return RULE_TONE[s];
+}
+
+const ACTION_RANK: Record<BuyerRiskAction, number> = {
+  monitor: 0,
+  reduce_limit: 1,
+  freeze_new: 2,
+  block: 3,
+};
+
+function escalate(a: BuyerRiskAction, b: BuyerRiskAction): BuyerRiskAction {
+  return ACTION_RANK[a] >= ACTION_RANK[b] ? a : b;
+}
+
+/** Pure rule engine — given metrics + current limit, emit signals & final action. */
+export function evaluateBuyerRisk(
+  buyerId: string,
+  metrics: BuyerRiskMetrics,
+  approvedLimit: number,
+): BuyerRiskAssessment {
+  const signals: BuyerRiskSignal[] = [];
+  const now = new Date().toISOString();
+
+  const add = (s: Omit<BuyerRiskSignal, "triggeredAt" | "reductionPct">) => {
+    signals.push({
+      ...s,
+      reductionPct: approvedLimit > 0 ? +(s.reductionInr / approvedLimit * 100).toFixed(1) : 0,
+      triggeredAt: now,
+    });
+  };
+
+  // ---- Repayment rules ----
+  if (metrics.daysPastDueMax >= 30) {
+    add({
+      id: "DPD-30", ruleId: "BR-001",
+      category: "repayment",
+      label: "Severe overdue (30+ days)",
+      detail: `Outstanding installment is ${metrics.daysPastDueMax} days past due.`,
+      severity: "critical",
+      reductionInr: approvedLimit,
+      action: "block",
+    });
+  } else if (metrics.daysPastDueMax >= 7) {
+    add({
+      id: "DPD-7", ruleId: "BR-002",
+      category: "repayment",
+      label: "Overdue installment (7+ days)",
+      detail: `Installment ${metrics.daysPastDueMax} days late — new drawdowns frozen.`,
+      severity: "high",
+      reductionInr: Math.round(approvedLimit * 0.5),
+      action: "freeze_new",
+    });
+  }
+
+  if (metrics.latePaymentsLast90d >= 3) {
+    add({
+      id: "LATE-3x90", ruleId: "BR-003",
+      category: "repayment",
+      label: "Repeated late payments",
+      detail: `${metrics.latePaymentsLast90d} late payments in the last 90 days.`,
+      severity: "high",
+      reductionInr: Math.round(approvedLimit * 0.3),
+      action: "reduce_limit",
+    });
+  } else if (metrics.latePaymentsLast90d >= 2) {
+    add({
+      id: "LATE-2x90", ruleId: "BR-004",
+      category: "repayment",
+      label: "Multiple late payments",
+      detail: `${metrics.latePaymentsLast90d} late payments in the last 90 days.`,
+      severity: "medium",
+      reductionInr: Math.round(approvedLimit * 0.15),
+      action: "reduce_limit",
+    });
+  }
+
+  if (metrics.rolling30dDefaultedAmount > 0) {
+    add({
+      id: "DEFAULT-30D", ruleId: "BR-005",
+      category: "repayment",
+      label: "Recent default written off",
+      detail: `₹${metrics.rolling30dDefaultedAmount.toLocaleString("en-IN")} defaulted in the last 30 days.`,
+      severity: "critical",
+      reductionInr: Math.round(approvedLimit * 0.7),
+      action: "freeze_new",
+    });
+  }
+
+  // ---- Velocity rules ----
+  if (metrics.drawdownsLast24h >= 5) {
+    add({
+      id: "VEL-24H", ruleId: "BR-010",
+      category: "velocity",
+      label: "Drawdown velocity spike",
+      detail: `${metrics.drawdownsLast24h} credit drawdowns in 24h vs typical ≤2.`,
+      severity: "high",
+      reductionInr: Math.round(approvedLimit * 0.25),
+      action: "freeze_new",
+    });
+  } else if (metrics.drawdownsLast7d >= 8) {
+    add({
+      id: "VEL-7D", ruleId: "BR-011",
+      category: "velocity",
+      label: "Elevated weekly drawdowns",
+      detail: `${metrics.drawdownsLast7d} drawdowns in 7 days.`,
+      severity: "medium",
+      reductionInr: Math.round(approvedLimit * 0.1),
+      action: "reduce_limit",
+    });
+  }
+
+  if (metrics.newSuppliersLast7d >= 5) {
+    add({
+      id: "VEL-NEW-SUPP", ruleId: "BR-012",
+      category: "velocity",
+      label: "Burst of new supplier relationships",
+      detail: `${metrics.newSuppliersLast7d} brand-new suppliers transacted in 7 days.`,
+      severity: "medium",
+      reductionInr: Math.round(approvedLimit * 0.1),
+      action: "reduce_limit",
+    });
+  }
+
+  // ---- Identity / device rules ----
+  if (metrics.gstinReverifyFailed) {
+    add({
+      id: "ID-GST-FAIL", ruleId: "BR-020",
+      category: "identity",
+      label: "GSTIN re-verification failed",
+      detail: `Latest GSTIN check returned mismatched legal name / status.`,
+      severity: "critical",
+      reductionInr: approvedLimit,
+      action: "block",
+    });
+  }
+
+  if (metrics.deviceChangesLast30d >= 4) {
+    add({
+      id: "DEV-CHURN", ruleId: "BR-021",
+      category: "device",
+      label: "Frequent device changes",
+      detail: `${metrics.deviceChangesLast30d} new devices used in 30 days.`,
+      severity: "high",
+      reductionInr: Math.round(approvedLimit * 0.2),
+      action: "reduce_limit",
+    });
+  }
+
+  if (metrics.ipCountryMismatches >= 1) {
+    add({
+      id: "IP-GEO", ruleId: "BR-022",
+      category: "device",
+      label: "Foreign IP login detected",
+      detail: `${metrics.ipCountryMismatches} session(s) outside India in last 30 days.`,
+      severity: "medium",
+      reductionInr: Math.round(approvedLimit * 0.1),
+      action: "reduce_limit",
+    });
+  }
+
+  // ---- Disputes ----
+  if (metrics.chargebacksLast180d >= 2) {
+    add({
+      id: "CB-180D", ruleId: "BR-030",
+      category: "dispute",
+      label: "Repeated chargebacks",
+      detail: `${metrics.chargebacksLast180d} chargebacks in 180 days.`,
+      severity: "high",
+      reductionInr: Math.round(approvedLimit * 0.3),
+      action: "freeze_new",
+    });
+  }
+  if (metrics.openDisputes >= 3) {
+    add({
+      id: "DSP-OPEN", ruleId: "BR-031",
+      category: "dispute",
+      label: "Multiple open disputes",
+      detail: `${metrics.openDisputes} disputes currently open.`,
+      severity: "medium",
+      reductionInr: Math.round(approvedLimit * 0.1),
+      action: "reduce_limit",
+    });
+  }
+
+  // ---- Behavior ----
+  if (metrics.refundedThenRedrawCount >= 2) {
+    add({
+      id: "BHV-REFUND-LOOP", ruleId: "BR-040",
+      category: "behavior",
+      label: "Refund-then-redraw pattern",
+      detail: `${metrics.refundedThenRedrawCount} cycles of refund followed by immediate new drawdown.`,
+      severity: "high",
+      reductionInr: Math.round(approvedLimit * 0.25),
+      action: "freeze_new",
+    });
+  }
+  if (metrics.cartAbandonAfterCreditCheck >= 5) {
+    add({
+      id: "BHV-PROBE", ruleId: "BR-041",
+      category: "behavior",
+      label: "Credit-check probing",
+      detail: `${metrics.cartAbandonAfterCreditCheck} large carts abandoned right after credit eligibility check.`,
+      severity: "low",
+      reductionInr: 0,
+      action: "monitor",
+    });
+  }
+
+  // ---- Exposure ----
+  if (metrics.exposureToHighRiskSuppliers > approvedLimit * 0.4) {
+    add({
+      id: "EXP-HIGHRISK", ruleId: "BR-050",
+      category: "exposure",
+      label: "High exposure to flagged suppliers",
+      detail: `₹${metrics.exposureToHighRiskSuppliers.toLocaleString("en-IN")} concentrated with high-risk suppliers.`,
+      severity: "medium",
+      reductionInr: Math.round(approvedLimit * 0.15),
+      action: "reduce_limit",
+    });
+  }
+  if (metrics.utilizationPct >= 95) {
+    add({
+      id: "EXP-UTIL", ruleId: "BR-051",
+      category: "exposure",
+      label: "Limit nearly fully utilized",
+      detail: `${metrics.utilizationPct}% of approved limit currently drawn.`,
+      severity: "low",
+      reductionInr: 0,
+      action: "monitor",
+    });
+  }
+
+  // ---- Aggregate ----
+  let action: BuyerRiskAction = "monitor";
+  for (const s of signals) action = escalate(action, s.action);
+
+  // For block: reduction = full limit, effective = 0.
+  // For freeze_new / reduce_limit: cap reductions at approvedLimit.
+  const rawReduction = signals.reduce((a, s) => a + s.reductionInr, 0);
+  const totalReductionInr =
+    action === "block" ? approvedLimit : Math.min(approvedLimit, rawReduction);
+  const effectiveLimit = action === "block" ? 0 : Math.max(0, approvedLimit - totalReductionInr);
+
+  // Risk score: blend of severity counts + reduction ratio.
+  const sevWeight: Record<BuyerRiskSeverity, number> = {
+    info: 1, low: 3, medium: 8, high: 16, critical: 28,
+  };
+  const sevTotal = signals.reduce((a, s) => a + sevWeight[s.severity], 0);
+  const reductionRatio = approvedLimit > 0 ? totalReductionInr / approvedLimit : 0;
+  const riskScore = Math.min(
+    100,
+    Math.round(sevTotal + reductionRatio * 35 + (action === "block" ? 25 : 0)),
+  );
+
+  const rationale =
+    action === "block"
+      ? "Account blocked from new BNPL drawdowns pending compliance review."
+      : action === "freeze_new"
+        ? "New drawdowns frozen until outstanding risks are cleared."
+        : action === "reduce_limit"
+          ? `Approved limit temporarily reduced by ₹${totalReductionInr.toLocaleString("en-IN")} based on detected risk signals.`
+          : signals.length === 0
+            ? "No risk signals detected. Limit unchanged."
+            : "Low-severity signals only — monitoring, no limit change.";
+
+  return {
+    buyerId,
+    signals,
+    riskScore,
+    action,
+    totalReductionInr,
+    effectiveLimit,
+    rationale,
+    evaluatedAt: now,
+  };
+}
+
+/** Demo metrics tuned to surface a realistic mix of signals. */
+export function mockBuyerRiskMetrics(profile: BuyerCreditProfile): BuyerRiskMetrics {
+  const utilizationPct = profile.approvedLimit > 0
+    ? Math.round((profile.utilized / profile.approvedLimit) * 100)
+    : 0;
+  // Surface some signals if trust is mid/low; keep clean for very high trust.
+  const risky = profile.trustScore < 800;
+  return {
+    latePaymentsLast90d: risky ? 2 : 0,
+    daysPastDueMax: risky ? 9 : 0,
+    rolling30dDefaultedAmount: 0,
+    drawdownsLast24h: risky ? 3 : 1,
+    drawdownsLast7d: risky ? 6 : 2,
+    newSuppliersLast7d: risky ? 5 : 1,
+    deviceChangesLast30d: risky ? 2 : 0,
+    ipCountryMismatches: 0,
+    gstinReverifyFailed: false,
+    openDisputes: risky ? 1 : 0,
+    chargebacksLast180d: 0,
+    cartAbandonAfterCreditCheck: risky ? 6 : 1,
+    refundedThenRedrawCount: 0,
+    exposureToHighRiskSuppliers: risky ? Math.round(profile.approvedLimit * 0.5) : 0,
+    utilizationPct,
+  };
+}
+
 export function summarizeAuditTrail(trail: CreditLimitAuditEntry[]) {
   const positive = trail.filter((e) => e.delta > 0).reduce((a, e) => a + e.delta, 0);
   const negative = trail.filter((e) => e.delta < 0).reduce((a, e) => a + Math.abs(e.delta), 0);
