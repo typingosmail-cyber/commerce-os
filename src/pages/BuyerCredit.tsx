@@ -21,6 +21,7 @@ import {
   ShieldAlert, Ban, Snowflake, Activity, Fingerprint, Gauge, Scale,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
 
 const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
