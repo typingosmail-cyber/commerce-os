@@ -157,11 +157,21 @@ export default function BuyerCredit() {
           </Card>
         </div>
 
+        {risk.action !== "monitor" && <RiskBanner risk={risk} />}
+
         <Tabs defaultValue="overview">
           <TabsList>
             <TabsTrigger value="overview">Score Breakdown</TabsTrigger>
             <TabsTrigger value="simulate">Quick Drawdown</TabsTrigger>
             <TabsTrigger value="active">Active Lines</TabsTrigger>
+            <TabsTrigger value="risk" className="relative">
+              Risk Signals
+              {risk.signals.length > 0 && (
+                <Badge variant={risk.action === "block" || risk.action === "freeze_new" ? "destructive" : "secondary"} className="ml-1.5 h-4 px-1.5 text-[10px]">
+                  {risk.signals.length}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="grow">Grow Limit</TabsTrigger>
             <TabsTrigger value="audit">Audit Trail</TabsTrigger>
           </TabsList>
