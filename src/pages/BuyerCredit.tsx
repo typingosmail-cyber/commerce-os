@@ -422,6 +422,11 @@ export default function BuyerCredit() {
             </Card>
           </TabsContent>
 
+          {/* Risk signals */}
+          <TabsContent value="risk" className="mt-4 space-y-4">
+            <RiskPanel risk={risk} approvedLimit={profile.approvedLimit} />
+          </TabsContent>
+
           {/* Grow limit */}
           <TabsContent value="grow" className="mt-4 space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
