@@ -102,7 +102,10 @@ export default function FraudDetection() {
 
   const handleAction = (p: SupplierRiskProfile, action: "suspend" | "review" | "clear") => {
     if (action === "suspend") toast.error(`${p.supplierName} suspended`, { description: "Listings hidden, escrow funds frozen pending review." });
-    if (action === "review") toast.info(`Case opened for ${p.supplierName}`, { description: "Compliance team notified." });
+    if (action === "review") {
+      const c = openCaseFromSupplier(p);
+      toast.info(`Case ${c.id} opened for ${p.supplierName}`, { description: "Open the Cases tab to investigate." });
+    }
     if (action === "clear") toast.success(`${p.supplierName} cleared`, { description: "Marked as false positive — score recalibrated." });
     setSelected(null);
   };
