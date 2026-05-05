@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
+import { AutoRepaymentPanel } from "@/components/buyer/AutoRepaymentPanel";
 
 const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
@@ -175,6 +176,7 @@ export default function BuyerCredit() {
             </TabsTrigger>
             <TabsTrigger value="grow">Grow Limit</TabsTrigger>
             <TabsTrigger value="request">Request Limit</TabsTrigger>
+            <TabsTrigger value="autopay">AutoPay</TabsTrigger>
             <TabsTrigger value="audit">Audit Trail</TabsTrigger>
           </TabsList>
 
@@ -512,7 +514,12 @@ export default function BuyerCredit() {
             <LimitRequestPanel profile={profile} />
           </TabsContent>
 
-          {/* Audit trail */}
+          {/* Auto-repayment / Payment Gateway */}
+          <TabsContent value="autopay" className="mt-4 space-y-4">
+            <AutoRepaymentPanel lines={profile.creditLines} schedules={schedules} />
+          </TabsContent>
+
+
           <TabsContent value="audit" className="mt-4 space-y-4">
             <AuditTrailPanel
               entries={auditTrail}
