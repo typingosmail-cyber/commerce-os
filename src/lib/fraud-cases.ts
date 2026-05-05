@@ -55,7 +55,7 @@ export interface CaseEvent {
   detail: string;
 }
 
-export interface CaseRecord extends FraudCase {
+export interface CaseRecord extends Omit<FraudCase, "status"> {
   status: CaseStatus;
   priority: "low" | "medium" | "high" | "critical";
   notesList: CaseNote[];
