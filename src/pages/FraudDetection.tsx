@@ -23,6 +23,8 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
 } from "recharts";
+import FraudCaseWorkflow from "@/components/admin/FraudCaseWorkflow";
+import { openCaseFromSupplier } from "@/lib/fraud-cases";
 
 const CATEGORY_ICON = {
   documents: FileWarning,
@@ -100,7 +102,10 @@ export default function FraudDetection() {
 
   const handleAction = (p: SupplierRiskProfile, action: "suspend" | "review" | "clear") => {
     if (action === "suspend") toast.error(`${p.supplierName} suspended`, { description: "Listings hidden, escrow funds frozen pending review." });
-    if (action === "review") toast.info(`Case opened for ${p.supplierName}`, { description: "Compliance team notified." });
+    if (action === "review") {
+      const c = openCaseFromSupplier(p);
+      toast.info(`Case ${c.id} opened for ${p.supplierName}`, { description: "Open the Cases tab to investigate." });
+    }
     if (action === "clear") toast.success(`${p.supplierName} cleared`, { description: "Marked as false positive — score recalibrated." });
     setSelected(null);
   };
@@ -260,46 +265,7 @@ export default function FraudDetection() {
 
           {/* CASES TAB */}
           <TabsContent value="cases" className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Open Fraud Cases</CardTitle>
-                <CardDescription>Investigations triggered by high-risk signals</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Case ID</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead>Primary Signal</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Assignee</TableHead>
-                      <TableHead>Opened</TableHead>
-                      <TableHead>Notes</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {cases.map(c => (
-                      <TableRow key={c.id}>
-                        <TableCell className="font-mono text-xs">{c.id}</TableCell>
-                        <TableCell className="text-sm">{c.supplierName}</TableCell>
-                        <TableCell className="text-xs">{c.primarySignal}</TableCell>
-                        <TableCell><Badge variant="outline" className={`${STATUS_STYLE[c.status]} text-[10px] capitalize`}>{c.status}</Badge></TableCell>
-                        <TableCell className="text-xs">{c.assignee}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3 inline mr-1" />
-                          {new Date(c.openedAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell><Badge variant="secondary" className="text-[10px]">{c.notes}</Badge></TableCell>
-                      </TableRow>
-                    ))}
-                    {cases.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">No open cases</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <FraudCaseWorkflow />
           </TabsContent>
 
           {/* ANALYTICS TAB */}
