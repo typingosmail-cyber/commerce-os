@@ -44,7 +44,7 @@ const STATUS_STYLE: Record<FraudCase["status"], string> = {
 };
 
 export default function FraudDetection() {
-  const [profiles, setProfiles] = useState<SupplierRiskProfile[]>(() => getMockRiskProfiles());
+  const [profiles, setProfiles] = useState<SupplierRiskProfile[]>(() => applyFalsePositiveOverlay(getMockRiskProfiles()));
   const [cases, setCases] = useState<FraudCase[]>(() => getMockCases(getMockRiskProfiles()));
   const [search, setSearch] = useState("");
   const [filterLevel, setFilterLevel] = useState<RiskLevel | "all">("all");
