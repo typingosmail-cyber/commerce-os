@@ -304,11 +304,36 @@ function CaseDrawer({ caseId, onClose, onChanged }: { caseId: string | null; onC
         {c.status !== "resolved" && (
           <div className="flex flex-col sm:flex-row gap-2 mt-6 pt-4 border-t">
             <ResolveDialog caseId={c.id} onDone={() => after("Case resolved")} />
+            <CaseFalsePositive caseRec={c} onDone={() => after("False positive recorded — risk recalibrated")} />
             <EscalateDialog caseId={c.id} onDone={() => after("Case escalated")} />
           </div>
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function CaseFalsePositive({ caseRec, onDone }: { caseRec: CaseRecord; onDone: () => void }) {
+  const profile = applyFalsePositiveOverlay(getMockRiskProfiles()).find((p) => p.supplierId === caseRec.supplierId)
+    ?? getMockRiskProfiles().find((p) => p.supplierId === caseRec.supplierId);
+  if (!profile) return null;
+  return (
+    <FalsePositiveDialog
+      profile={profile}
+      reviewer={currentActor()}
+      reviewerRole="Case Reviewer"
+      caseId={caseRec.id}
+      onDone={() => {
+        // Auto-resolve case as false_positive when override is recorded
+        resolveCase(caseRec.id, "false_positive", "Marked false positive via recalibration workflow");
+        onDone();
+      }}
+      trigger={
+        <Button variant="outline" className="flex-1">
+          <ShieldAlert className="h-4 w-4 mr-1" /> False Positive & Recalibrate
+        </Button>
+      }
+    />
   );
 }
 
