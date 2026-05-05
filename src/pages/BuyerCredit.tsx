@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
+import { AutoRepaymentPanel } from "@/components/buyer/AutoRepaymentPanel";
 
 const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
