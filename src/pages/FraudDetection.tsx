@@ -425,9 +425,17 @@ export default function FraudDetection() {
               </Card>
 
               <div className="flex gap-2 justify-end pt-2">
-                <Button variant="outline" size="sm" onClick={() => handleAction(selected, "clear")}>
-                  <CheckCircle2 className="h-4 w-4 mr-1" /> Mark False Positive
-                </Button>
+                <FalsePositiveDialog
+                  profile={selected}
+                  reviewer="R. Sharma"
+                  reviewerRole="Compliance Reviewer"
+                  onDone={() => { refresh(); setSelected(null); }}
+                  trigger={
+                    <Button variant="outline" size="sm">
+                      <CheckCircle2 className="h-4 w-4 mr-1" /> Mark False Positive
+                    </Button>
+                  }
+                />
                 <Button variant="outline" size="sm" onClick={() => handleAction(selected, "review")}>
                   <Eye className="h-4 w-4 mr-1" /> Open Case
                 </Button>
