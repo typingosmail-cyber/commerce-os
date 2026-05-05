@@ -25,6 +25,8 @@ import {
 } from "recharts";
 import FraudCaseWorkflow from "@/components/admin/FraudCaseWorkflow";
 import { openCaseFromSupplier } from "@/lib/fraud-cases";
+import FalsePositiveDialog from "@/components/admin/FalsePositiveDialog";
+import { applyFalsePositiveOverlay } from "@/lib/false-positive";
 
 const CATEGORY_ICON = {
   documents: FileWarning,
@@ -42,7 +44,7 @@ const STATUS_STYLE: Record<FraudCase["status"], string> = {
 };
 
 export default function FraudDetection() {
-  const [profiles, setProfiles] = useState<SupplierRiskProfile[]>(() => getMockRiskProfiles());
+  const [profiles, setProfiles] = useState<SupplierRiskProfile[]>(() => applyFalsePositiveOverlay(getMockRiskProfiles()));
   const [cases, setCases] = useState<FraudCase[]>(() => getMockCases(getMockRiskProfiles()));
   const [search, setSearch] = useState("");
   const [filterLevel, setFilterLevel] = useState<RiskLevel | "all">("all");
@@ -87,10 +89,12 @@ export default function FraudDetection() {
     ];
   }, [selected]);
 
+  const refresh = () => setProfiles(applyFalsePositiveOverlay(getMockRiskProfiles()));
+
   const handleRescan = () => {
     setScanning(true);
     setTimeout(() => {
-      const refreshed = getMockRiskProfiles().map(p => ({
+      const refreshed = applyFalsePositiveOverlay(getMockRiskProfiles()).map(p => ({
         ...p,
         riskScore: Math.min(100, p.riskScore + Math.round((Math.random() - 0.5) * 8)),
       }));
@@ -421,9 +425,17 @@ export default function FraudDetection() {
               </Card>
 
               <div className="flex gap-2 justify-end pt-2">
-                <Button variant="outline" size="sm" onClick={() => handleAction(selected, "clear")}>
-                  <CheckCircle2 className="h-4 w-4 mr-1" /> Mark False Positive
-                </Button>
+                <FalsePositiveDialog
+                  profile={selected}
+                  reviewer="R. Sharma"
+                  reviewerRole="Compliance Reviewer"
+                  onDone={() => { refresh(); setSelected(null); }}
+                  trigger={
+                    <Button variant="outline" size="sm">
+                      <CheckCircle2 className="h-4 w-4 mr-1" /> Mark False Positive
+                    </Button>
+                  }
+                />
                 <Button variant="outline" size="sm" onClick={() => handleAction(selected, "review")}>
                   <Eye className="h-4 w-4 mr-1" /> Open Case
                 </Button>
