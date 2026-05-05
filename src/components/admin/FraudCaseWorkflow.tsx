@@ -31,6 +31,9 @@ import {
   STATUS_LABEL, STATUS_STYLE_V2, PRIORITY_STYLE,
   type CaseRecord, type CaseStatus, type Resolution, type DocStatus,
 } from "@/lib/fraud-cases";
+import FalsePositiveDialog from "./FalsePositiveDialog";
+import { applyFalsePositiveOverlay } from "@/lib/false-positive";
+import { getMockRiskProfiles } from "@/lib/fraud-detection";
 
 export default function FraudCaseWorkflow() {
   const [, force] = useState(0);
