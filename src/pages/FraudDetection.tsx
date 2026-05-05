@@ -23,6 +23,8 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
 } from "recharts";
+import FraudCaseWorkflow from "@/components/admin/FraudCaseWorkflow";
+import { openCaseFromSupplier } from "@/lib/fraud-cases";
 
 const CATEGORY_ICON = {
   documents: FileWarning,
