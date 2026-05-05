@@ -25,6 +25,8 @@ import {
 } from "recharts";
 import FraudCaseWorkflow from "@/components/admin/FraudCaseWorkflow";
 import { openCaseFromSupplier } from "@/lib/fraud-cases";
+import FalsePositiveDialog from "@/components/admin/FalsePositiveDialog";
+import { applyFalsePositiveOverlay } from "@/lib/false-positive";
 
 const CATEGORY_ICON = {
   documents: FileWarning,
