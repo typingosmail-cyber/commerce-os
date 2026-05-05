@@ -514,7 +514,12 @@ export default function BuyerCredit() {
             <LimitRequestPanel profile={profile} />
           </TabsContent>
 
-          {/* Audit trail */}
+          {/* Auto-repayment / Payment Gateway */}
+          <TabsContent value="autopay" className="mt-4 space-y-4">
+            <AutoRepaymentPanel lines={profile.creditLines} schedules={schedules} />
+          </TabsContent>
+
+
           <TabsContent value="audit" className="mt-4 space-y-4">
             <AuditTrailPanel
               entries={auditTrail}
