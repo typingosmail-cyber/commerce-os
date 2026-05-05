@@ -89,10 +89,12 @@ export default function FraudDetection() {
     ];
   }, [selected]);
 
+  const refresh = () => setProfiles(applyFalsePositiveOverlay(getMockRiskProfiles()));
+
   const handleRescan = () => {
     setScanning(true);
     setTimeout(() => {
-      const refreshed = getMockRiskProfiles().map(p => ({
+      const refreshed = applyFalsePositiveOverlay(getMockRiskProfiles()).map(p => ({
         ...p,
         riskScore: Math.min(100, p.riskScore + Math.round((Math.random() - 0.5) * 8)),
       }));
