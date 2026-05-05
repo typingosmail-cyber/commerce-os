@@ -176,6 +176,7 @@ export default function BuyerCredit() {
             </TabsTrigger>
             <TabsTrigger value="grow">Grow Limit</TabsTrigger>
             <TabsTrigger value="request">Request Limit</TabsTrigger>
+            <TabsTrigger value="autopay">AutoPay</TabsTrigger>
             <TabsTrigger value="audit">Audit Trail</TabsTrigger>
           </TabsList>
 
