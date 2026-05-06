@@ -185,6 +185,7 @@ export default function FraudDetection() {
           <TabsList>
             <TabsTrigger value="suppliers">Risky Suppliers</TabsTrigger>
             <TabsTrigger value="cases">Open Cases</TabsTrigger>
+            <TabsTrigger value="alerts">Alert Rules</TabsTrigger>
             <TabsTrigger value="analytics">Risk Analytics</TabsTrigger>
             <TabsTrigger value="signals">Detection Signals</TabsTrigger>
           </TabsList>
