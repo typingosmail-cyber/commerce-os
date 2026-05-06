@@ -274,6 +274,11 @@ export default function FraudDetection() {
             <FraudCaseWorkflow />
           </TabsContent>
 
+          {/* ALERT RULES TAB */}
+          <TabsContent value="alerts" className="space-y-4">
+            <AlertRulesPanel />
+          </TabsContent>
+
           {/* ANALYTICS TAB */}
           <TabsContent value="analytics" className="grid md:grid-cols-2 gap-4">
             <Card>
