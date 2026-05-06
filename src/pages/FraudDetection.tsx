@@ -26,6 +26,7 @@ import {
 import FraudCaseWorkflow from "@/components/admin/FraudCaseWorkflow";
 import { openCaseFromSupplier } from "@/lib/fraud-cases";
 import FalsePositiveDialog from "@/components/admin/FalsePositiveDialog";
+import AlertRulesPanel from "@/components/admin/AlertRulesPanel";
 import { applyFalsePositiveOverlay } from "@/lib/false-positive";
 
 const CATEGORY_ICON = {
@@ -184,6 +185,7 @@ export default function FraudDetection() {
           <TabsList>
             <TabsTrigger value="suppliers">Risky Suppliers</TabsTrigger>
             <TabsTrigger value="cases">Open Cases</TabsTrigger>
+            <TabsTrigger value="alerts">Alert Rules</TabsTrigger>
             <TabsTrigger value="analytics">Risk Analytics</TabsTrigger>
             <TabsTrigger value="signals">Detection Signals</TabsTrigger>
           </TabsList>
@@ -270,6 +272,11 @@ export default function FraudDetection() {
           {/* CASES TAB */}
           <TabsContent value="cases" className="space-y-4">
             <FraudCaseWorkflow />
+          </TabsContent>
+
+          {/* ALERT RULES TAB */}
+          <TabsContent value="alerts" className="space-y-4">
+            <AlertRulesPanel />
           </TabsContent>
 
           {/* ANALYTICS TAB */}
