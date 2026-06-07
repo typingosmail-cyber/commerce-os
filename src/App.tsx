@@ -26,6 +26,8 @@ import SupplierVerification from "./pages/SupplierVerification";
 import BuyerCredit from "./pages/BuyerCredit";
 import FraudDetection from "./pages/FraudDetection";
 import AdminReviewer from "./pages/AdminReviewer";
+import TradeOS from "./pages/TradeOS";
+import TradeOSConsole from "./pages/TradeOSConsole";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +60,8 @@ const App = () => (
             <Route path="/buyer/credit" element={<BuyerCredit />} />
             <Route path="/admin/fraud" element={<FraudDetection />} />
             <Route path="/admin/reviewer" element={<AdminReviewer />} />
+            <Route path="/trade-os" element={<TradeOS />} />
+            <Route path="/trade-os/:id" element={<TradeOSConsole />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
