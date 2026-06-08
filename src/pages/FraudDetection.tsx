@@ -462,7 +462,12 @@ export default function FraudDetection() {
                 </CardContent>
               </Card>
 
+              <div className="pt-2">
+                <RiskTimelineAudit profile={selected} />
+              </div>
+
               <div className="flex gap-2 justify-end pt-2">
+
                 <FalsePositiveDialog
                   profile={selected}
                   reviewer="R. Sharma"
