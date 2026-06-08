@@ -321,6 +321,12 @@ export default function FraudDetection() {
             <AlertRulesPanel />
           </TabsContent>
 
+          {/* NOTIFICATIONS TAB */}
+          <TabsContent value="notifications" className="space-y-4">
+            <FraudAlertsPanel profiles={profiles} />
+          </TabsContent>
+
+
           {/* ANALYTICS TAB */}
           <TabsContent value="analytics" className="grid md:grid-cols-2 gap-4">
             <Card>
