@@ -27,6 +27,7 @@ import FraudCaseWorkflow from "@/components/admin/FraudCaseWorkflow";
 import { openCaseFromSupplier } from "@/lib/fraud-cases";
 import FalsePositiveDialog from "@/components/admin/FalsePositiveDialog";
 import AlertRulesPanel from "@/components/admin/AlertRulesPanel";
+import RiskTimelineAudit from "@/components/admin/RiskTimelineAudit";
 import { applyFalsePositiveOverlay } from "@/lib/false-positive";
 
 const CATEGORY_ICON = {
