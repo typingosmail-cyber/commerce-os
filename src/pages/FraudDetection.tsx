@@ -55,6 +55,7 @@ export default function FraudDetection() {
   const [filterLevel, setFilterLevel] = useState<RiskLevel | "all">("all");
   const [selected, setSelected] = useState<SupplierRiskProfile | null>(null);
   const [scanning, setScanning] = useState(false);
+  const { addNotification } = useNotifications();
 
   const summary = useMemo(() => summarizeFraud(profiles), [profiles]);
 
