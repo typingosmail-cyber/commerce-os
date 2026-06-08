@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/popover";
 import {
   Bell, ShoppingCart, Shield, Award, TrendingUp, Settings,
-  CheckCheck, X, Clock, Zap, Handshake,
+  CheckCheck, X, Clock, Zap, Handshake, ShieldAlert,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -18,6 +18,7 @@ const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; color: st
   commission: { icon: Award, color: "text-secondary", bg: "bg-secondary/10", label: "Commission" },
   trust: { icon: TrendingUp, color: "text-warning", bg: "bg-warning/10", label: "Trust" },
   deal: { icon: Handshake, color: "text-primary", bg: "bg-primary/10", label: "Deal" },
+  fraud: { icon: ShieldAlert, color: "text-destructive", bg: "bg-destructive/10", label: "Fraud Alert" },
   system: { icon: Settings, color: "text-muted-foreground", bg: "bg-muted", label: "System" },
 };
 
