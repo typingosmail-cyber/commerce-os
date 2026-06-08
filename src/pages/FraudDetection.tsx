@@ -185,6 +185,7 @@ export default function FraudDetection() {
         <Tabs defaultValue="suppliers" className="space-y-4">
           <TabsList>
             <TabsTrigger value="suppliers">Risky Suppliers</TabsTrigger>
+            <TabsTrigger value="timeline">Risk Timeline</TabsTrigger>
             <TabsTrigger value="cases">Open Cases</TabsTrigger>
             <TabsTrigger value="alerts">Alert Rules</TabsTrigger>
             <TabsTrigger value="analytics">Risk Analytics</TabsTrigger>
