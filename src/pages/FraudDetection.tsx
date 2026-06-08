@@ -28,7 +28,10 @@ import { openCaseFromSupplier } from "@/lib/fraud-cases";
 import FalsePositiveDialog from "@/components/admin/FalsePositiveDialog";
 import AlertRulesPanel from "@/components/admin/AlertRulesPanel";
 import RiskTimelineAudit from "@/components/admin/RiskTimelineAudit";
+import FraudAlertsPanel from "@/components/admin/FraudAlertsPanel";
 import { applyFalsePositiveOverlay } from "@/lib/false-positive";
+import { detectAndDispatch } from "@/lib/fraud-alerts";
+import { useNotifications } from "@/lib/notifications";
 
 const CATEGORY_ICON = {
   documents: FileWarning,
