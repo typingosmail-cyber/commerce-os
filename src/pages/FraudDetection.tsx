@@ -271,10 +271,39 @@ export default function FraudDetection() {
             </Card>
           </TabsContent>
 
+          {/* TIMELINE TAB */}
+          <TabsContent value="timeline" className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex flex-col md:flex-row gap-3 md:items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">Supplier Risk Timeline</CardTitle>
+                    <CardDescription>Audit how each risk signal accumulated, with links back to source records.</CardDescription>
+                  </div>
+                  <Select
+                    value={selected?.supplierId ?? profiles[0]?.supplierId}
+                    onValueChange={v => setSelected(profiles.find(p => p.supplierId === v) ?? null)}
+                  >
+                    <SelectTrigger className="h-9 w-72"><SelectValue placeholder="Choose supplier" /></SelectTrigger>
+                    <SelectContent>
+                      {profiles.map(p => (
+                        <SelectItem key={p.supplierId} value={p.supplierId}>
+                          {p.supplierName} · {p.riskScore}/100
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+            </Card>
+            {(selected ?? profiles[0]) && <RiskTimelineAudit profile={selected ?? profiles[0]} />}
+          </TabsContent>
+
           {/* CASES TAB */}
           <TabsContent value="cases" className="space-y-4">
             <FraudCaseWorkflow />
           </TabsContent>
+
 
           {/* ALERT RULES TAB */}
           <TabsContent value="alerts" className="space-y-4">
