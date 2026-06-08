@@ -107,6 +107,12 @@ export default function FraudDetection() {
       setProfiles(refreshed);
       setScanning(false);
       toast.success("AI fraud scan complete", { description: `Re-evaluated ${refreshed.length} suppliers across 9 risk vectors.` });
+      const dispatch = detectAndDispatch(refreshed, { pushInApp: (n) => addNotification(n) });
+      if (dispatch.alerts.length > 0) {
+        toast.warning(`${dispatch.alerts.length} new fraud alert${dispatch.alerts.length === 1 ? "" : "s"}`, {
+          description: `Notified ${dispatch.emails.length} email + ${dispatch.inApp.length} in-app subscribers. See Alerts tab.`,
+        });
+      }
     }, 1400);
   };
 
