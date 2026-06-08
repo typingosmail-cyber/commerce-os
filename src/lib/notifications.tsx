@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 
-export type NotificationType = "lead" | "escrow" | "commission" | "trust" | "system" | "deal";
+export type NotificationType = "lead" | "escrow" | "commission" | "trust" | "system" | "deal" | "fraud";
 
 export interface AppNotification {
   id: string;

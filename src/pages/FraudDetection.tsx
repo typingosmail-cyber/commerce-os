@@ -28,7 +28,10 @@ import { openCaseFromSupplier } from "@/lib/fraud-cases";
 import FalsePositiveDialog from "@/components/admin/FalsePositiveDialog";
 import AlertRulesPanel from "@/components/admin/AlertRulesPanel";
 import RiskTimelineAudit from "@/components/admin/RiskTimelineAudit";
+import FraudAlertsPanel from "@/components/admin/FraudAlertsPanel";
 import { applyFalsePositiveOverlay } from "@/lib/false-positive";
+import { detectAndDispatch } from "@/lib/fraud-alerts";
+import { useNotifications } from "@/lib/notifications";
 
 const CATEGORY_ICON = {
   documents: FileWarning,
@@ -52,6 +55,7 @@ export default function FraudDetection() {
   const [filterLevel, setFilterLevel] = useState<RiskLevel | "all">("all");
   const [selected, setSelected] = useState<SupplierRiskProfile | null>(null);
   const [scanning, setScanning] = useState(false);
+  const { addNotification } = useNotifications();
 
   const summary = useMemo(() => summarizeFraud(profiles), [profiles]);
 
@@ -103,6 +107,12 @@ export default function FraudDetection() {
       setProfiles(refreshed);
       setScanning(false);
       toast.success("AI fraud scan complete", { description: `Re-evaluated ${refreshed.length} suppliers across 9 risk vectors.` });
+      const dispatch = detectAndDispatch(refreshed, { pushInApp: (n) => addNotification(n) });
+      if (dispatch.alerts.length > 0) {
+        toast.warning(`${dispatch.alerts.length} new fraud alert${dispatch.alerts.length === 1 ? "" : "s"}`, {
+          description: `Notified ${dispatch.emails.length} email + ${dispatch.inApp.length} in-app subscribers. See Alerts tab.`,
+        });
+      }
     }, 1400);
   };
 
@@ -188,6 +198,7 @@ export default function FraudDetection() {
             <TabsTrigger value="timeline">Risk Timeline</TabsTrigger>
             <TabsTrigger value="cases">Open Cases</TabsTrigger>
             <TabsTrigger value="alerts">Alert Rules</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="analytics">Risk Analytics</TabsTrigger>
             <TabsTrigger value="signals">Detection Signals</TabsTrigger>
           </TabsList>
@@ -309,6 +320,12 @@ export default function FraudDetection() {
           <TabsContent value="alerts" className="space-y-4">
             <AlertRulesPanel />
           </TabsContent>
+
+          {/* NOTIFICATIONS TAB */}
+          <TabsContent value="notifications" className="space-y-4">
+            <FraudAlertsPanel profiles={profiles} />
+          </TabsContent>
+
 
           {/* ANALYTICS TAB */}
           <TabsContent value="analytics" className="grid md:grid-cols-2 gap-4">
