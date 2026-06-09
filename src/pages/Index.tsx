@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { GuaranteeExplainer, SmartDealCard } from "@/components/DealGuarantee";
+import { PainkillerHub } from "@/components/PainkillerHub";
 import { CATEGORY_GROUPS, MOCK_CATALOG, MOCK_SUPPLIERS } from "@/lib/mock-data";
 import {
   Shield, Zap, Package, TrendingUp, ArrowRight, Building2, ShoppingCart,
@@ -131,6 +132,9 @@ export default function Index() {
           </div>
         </div>
       </section>
+
+      {/* The B2B Painkiller — unified value proposition */}
+      <PainkillerHub />
 
       {/* Stats */}
       <section className="border-b bg-card">
