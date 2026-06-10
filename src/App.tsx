@@ -29,6 +29,8 @@ import AdminReviewer from "./pages/AdminReviewer";
 import TradeOS from "./pages/TradeOS";
 import TradeOSConsole from "./pages/TradeOSConsole";
 import NotFound from "./pages/NotFound";
+import SolutionsHub from "./pages/SolutionsHub";
+import DynamicPage from "./pages/DynamicPage";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +65,8 @@ const App = () => (
             <Route path="/trade-os" element={<TradeOS />} />
             <Route path="/trade-os/:id" element={<TradeOSConsole />} />
             <Route path="/messages" element={<Messages />} />
+            <Route path="/solutions" element={<SolutionsHub />} />
+            <Route path="/p/:slug" element={<DynamicPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <CompareFloatingBar />
