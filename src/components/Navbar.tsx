@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const NAV_LINKS = [
+  { label: "Solutions", path: "/solutions", icon: Grid3X3 },
   { label: "Categories", path: "/categories", icon: Grid3X3 },
   { label: "Trade OS", path: "/trade-os", icon: Brain },
   { label: "Intelligence", path: "/intelligence", icon: Brain },
