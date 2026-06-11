@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   ShieldCheck, FileText, CheckCircle2, XCircle, AlertCircle, Clock, Search,
   History, Filter, Send, ArrowUpRight, FileWarning, Inbox, RotateCcw, Eye,
-  ChevronRight, User, Building2, Download,
+  ChevronRight, User, Building2, Download, Lock as LockIcon, LogOut,
 } from "lucide-react";
 import {
   loadQueue, saveQueue, loadAudit, appendAudit, computeStats, resetQueue,
@@ -25,8 +25,8 @@ import {
   timeAgo, timeUntil, auditForSupplier,
   type QueueDoc, type AuditEntry, type ReviewDecision,
 } from "@/lib/reviewer";
-
-const REVIEWER = { id: "RV-007", name: "R. Sharma" };
+import { ReviewerLoginGate } from "@/components/admin/ReviewerLoginGate";
+import { useReviewerAuth, ROLE_LABELS, type ReviewerPermission } from "@/lib/reviewer-auth";
 
 const DECISION_LABEL: Record<ReviewDecision, string> = {
   approved: "Approve",
@@ -43,6 +43,16 @@ const DECISION_ICON: Record<ReviewDecision, typeof CheckCircle2> = {
 };
 
 export default function AdminReviewer() {
+  return (
+    <ReviewerLoginGate>
+      <AdminReviewerInner />
+    </ReviewerLoginGate>
+  );
+}
+
+function AdminReviewerInner() {
+  const { user: reviewer, logout, can } = useReviewerAuth();
+  const REVIEWER = { id: reviewer!.id, name: reviewer!.name };
   const [queue, setQueue] = useState<QueueDoc[]>(() => loadQueue());
   const [audit, setAudit] = useState<AuditEntry[]>(() => loadAudit());
   const [search, setSearch] = useState("");
@@ -80,16 +90,31 @@ export default function AdminReviewer() {
   }, [queue, activeDoc]);
 
   const openReview = (doc: QueueDoc) => {
+    if (!can("review.approve") && !can("review.reject")) {
+      toast.error("Read-only access", { description: "Your role cannot take review actions." });
+      return;
+    }
     setActiveDoc(doc);
     setDecision("approved");
     setSelectedReasons([]);
     setNote("");
   };
 
+  const DECISION_PERMS: Record<ReviewDecision, ReviewerPermission> = {
+    approved: "review.approve",
+    rejected: "review.reject",
+    needs_info: "review.needs_info",
+    escalated: "review.escalate",
+  };
+
   const availableReasons = REASON_CODES.filter(r => r.appliesTo.includes(decision));
 
   const submitDecision = () => {
     if (!activeDoc) return;
+    if (!can(DECISION_PERMS[decision])) {
+      toast.error("Permission denied", { description: `Your role (${ROLE_LABELS[reviewer!.role]}) cannot ${decision.replace("_", " ")} documents.` });
+      return;
+    }
     if (selectedReasons.length === 0) {
       toast.error("Select at least one reason code");
       return;
@@ -159,20 +184,26 @@ export default function AdminReviewer() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <ShieldCheck className="h-6 w-6 text-primary" />
               <h1 className="text-2xl md:text-3xl font-bold">Reviewer Console</h1>
               <Badge variant="outline" className="text-[10px]">
                 <User className="h-3 w-3 mr-1" /> {REVIEWER.name} · {REVIEWER.id}
               </Badge>
+              <Badge className="text-[10px]">{ROLE_LABELS[reviewer!.role]}</Badge>
             </div>
             <p className="text-sm text-muted-foreground">
               Approve, reject, or escalate supplier KYC documents. All decisions are audit-logged.
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={exportAudit}><Download className="h-4 w-4 mr-1" /> Export Audit</Button>
-            <Button variant="outline" size="sm" onClick={handleResetQueue}><RotateCcw className="h-4 w-4 mr-1" /> Reset Queue</Button>
+            {can("audit.export") && (
+              <Button variant="outline" size="sm" onClick={exportAudit}><Download className="h-4 w-4 mr-1" /> Export Audit</Button>
+            )}
+            {can("queue.reset") && (
+              <Button variant="outline" size="sm" onClick={handleResetQueue}><RotateCcw className="h-4 w-4 mr-1" /> Reset Queue</Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={logout}><LogOut className="h-4 w-4 mr-1" /> Sign out</Button>
           </div>
         </div>
 
@@ -277,9 +308,15 @@ export default function AdminReviewer() {
                           </TableCell>
                           <TableCell>
                             {d.status === "uploaded" ? (
-                              <Button size="sm" className="h-7 text-xs" onClick={() => openReview(d)}>
-                                <Eye className="h-3 w-3 mr-1" /> Review
-                              </Button>
+                              can("review.approve") || can("review.reject") ? (
+                                <Button size="sm" className="h-7 text-xs" onClick={() => openReview(d)}>
+                                  <Eye className="h-3 w-3 mr-1" /> Review
+                                </Button>
+                              ) : (
+                                <Button size="sm" variant="outline" disabled className="h-7 text-xs">
+                                  <LockIcon className="h-3 w-3 mr-1" /> Read-only
+                                </Button>
+                              )
                             ) : (
                               <span className="text-[11px] text-muted-foreground">Done</span>
                             )}
@@ -433,6 +470,7 @@ export default function AdminReviewer() {
                     <div className="grid grid-cols-2 gap-2 mt-1.5">
                       {(["approved", "rejected", "needs_info", "escalated"] as ReviewDecision[]).map(d => {
                         const Icon = DECISION_ICON[d];
+                        const allowed = can(DECISION_PERMS[d]);
                         return (
                           <Button
                             key={d}
@@ -440,9 +478,12 @@ export default function AdminReviewer() {
                             variant={decision === d ? "default" : "outline"}
                             size="sm"
                             className="text-xs justify-start h-8"
+                            disabled={!allowed}
+                            title={allowed ? undefined : `Requires higher role`}
                             onClick={() => { setDecision(d); setSelectedReasons([]); }}
                           >
-                            <Icon className="h-3 w-3 mr-1.5" /> {DECISION_LABEL[d]}
+                            {allowed ? <Icon className="h-3 w-3 mr-1.5" /> : <LockIcon className="h-3 w-3 mr-1.5" />}
+                            {DECISION_LABEL[d]}
                           </Button>
                         );
                       })}
@@ -493,7 +534,7 @@ export default function AdminReviewer() {
 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <Button variant="ghost" size="sm" onClick={() => setActiveDoc(null)}>Cancel</Button>
-                <Button size="sm" onClick={submitDecision} className="gap-1">
+                <Button size="sm" onClick={submitDecision} disabled={!can(DECISION_PERMS[decision])} className="gap-1">
                   <Send className="h-4 w-4" /> Submit Decision
                 </Button>
               </div>
