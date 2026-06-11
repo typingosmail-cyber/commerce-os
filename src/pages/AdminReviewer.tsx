@@ -27,6 +27,9 @@ import {
 } from "@/lib/reviewer";
 import { ReviewerLoginGate } from "@/components/admin/ReviewerLoginGate";
 import { useReviewerAuth, ROLE_LABELS, type ReviewerPermission } from "@/lib/reviewer-auth";
+import { sendMockEmail, loadOutbox, onOutboxChange, supplierContactFor, type MockEmail } from "@/lib/email-outbox";
+import { useNotifications } from "@/lib/notifications";
+import { Mail, MailCheck, MailX } from "lucide-react";
 
 const DECISION_LABEL: Record<ReviewDecision, string> = {
   approved: "Approve",
