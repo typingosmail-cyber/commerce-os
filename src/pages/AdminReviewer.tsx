@@ -150,10 +150,53 @@ function AdminReviewerInner() {
     setQueue(updatedQueue);
     saveQueue(updatedQueue);
     setAudit([entry, ...audit]);
+
+    // Notify submitter — email (mock) + in-app — for actionable decisions only.
+    const notifyKinds: ReviewDecision[] = ["approved", "rejected", "needs_info"];
+    if (notifyKinds.includes(decision)) {
+      const contact = supplierContactFor(activeDoc.supplierId, activeDoc.supplierName);
+      const reasonLabels = selectedReasons.map(c =>
+        REASON_CODES.find(r => r.code === c)?.label || c
+      );
+      const email = sendMockEmail({
+        kind: decision as "approved" | "rejected" | "needs_info",
+        to: contact.email,
+        toName: contact.name,
+        supplierId: activeDoc.supplierId,
+        documentName: activeDoc.name,
+        reasonCodes: selectedReasons,
+        reasonLabels,
+        note: note.trim(),
+        reviewerName: REVIEWER.name,
+      });
+
+      const titleMap = {
+        approved: "Document Approved",
+        rejected: "Document Rejected",
+        needs_info: "More Information Requested",
+      } as const;
+      const k = decision as keyof typeof titleMap;
+      addNotification({
+        type: decision === "approved" ? "trust" : "system",
+        title: titleMap[k],
+        message: `${activeDoc.name} for ${activeDoc.supplierName} — ${reasonLabels[0] || decision}.`,
+        actionUrl: "/supplier/verification",
+        metadata: { supplierId: activeDoc.supplierId, documentId: activeDoc.id, emailId: email.id },
+      });
+
+      toast.success(`Document ${decision.replace("_", " ")}`, {
+        description: email.status === "sent"
+          ? `Email sent to ${contact.email} · in-app alert delivered`
+          : `In-app alert delivered · email failed to ${contact.email}`,
+      });
+    } else {
+      // escalated — internal only, no submitter notification
+      toast.success(`Document escalated`, {
+        description: `${activeDoc.name} sent to compliance. Submitter not notified.`,
+      });
+    }
+
     setActiveDoc(null);
-    toast.success(`Document ${decision.replace("_", " ")}`, {
-      description: `${activeDoc.name} for ${activeDoc.supplierName}`,
-    });
   };
 
   const handleResetQueue = () => {
