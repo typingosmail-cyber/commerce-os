@@ -470,6 +470,7 @@ function AdminReviewerInner() {
                     <div className="grid grid-cols-2 gap-2 mt-1.5">
                       {(["approved", "rejected", "needs_info", "escalated"] as ReviewDecision[]).map(d => {
                         const Icon = DECISION_ICON[d];
+                        const allowed = can(DECISION_PERMS[d]);
                         return (
                           <Button
                             key={d}
@@ -477,9 +478,12 @@ function AdminReviewerInner() {
                             variant={decision === d ? "default" : "outline"}
                             size="sm"
                             className="text-xs justify-start h-8"
+                            disabled={!allowed}
+                            title={allowed ? undefined : `Requires higher role`}
                             onClick={() => { setDecision(d); setSelectedReasons([]); }}
                           >
-                            <Icon className="h-3 w-3 mr-1.5" /> {DECISION_LABEL[d]}
+                            {allowed ? <Icon className="h-3 w-3 mr-1.5" /> : <LockIcon className="h-3 w-3 mr-1.5" />}
+                            {DECISION_LABEL[d]}
                           </Button>
                         );
                       })}
@@ -530,7 +534,7 @@ function AdminReviewerInner() {
 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <Button variant="ghost" size="sm" onClick={() => setActiveDoc(null)}>Cancel</Button>
-                <Button size="sm" onClick={submitDecision} className="gap-1">
+                <Button size="sm" onClick={submitDecision} disabled={!can(DECISION_PERMS[decision])} className="gap-1">
                   <Send className="h-4 w-4" /> Submit Decision
                 </Button>
               </div>
