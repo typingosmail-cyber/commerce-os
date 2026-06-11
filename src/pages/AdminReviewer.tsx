@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   ShieldCheck, FileText, CheckCircle2, XCircle, AlertCircle, Clock, Search,
   History, Filter, Send, ArrowUpRight, FileWarning, Inbox, RotateCcw, Eye,
-  ChevronRight, User, Building2, Download,
+  ChevronRight, User, Building2, Download, Lock as LockIcon, LogOut,
 } from "lucide-react";
 import {
   loadQueue, saveQueue, loadAudit, appendAudit, computeStats, resetQueue,
@@ -25,8 +25,8 @@ import {
   timeAgo, timeUntil, auditForSupplier,
   type QueueDoc, type AuditEntry, type ReviewDecision,
 } from "@/lib/reviewer";
-
-const REVIEWER = { id: "RV-007", name: "R. Sharma" };
+import { ReviewerLoginGate } from "@/components/admin/ReviewerLoginGate";
+import { useReviewerAuth, ROLE_LABELS, type ReviewerPermission } from "@/lib/reviewer-auth";
 
 const DECISION_LABEL: Record<ReviewDecision, string> = {
   approved: "Approve",
@@ -43,6 +43,16 @@ const DECISION_ICON: Record<ReviewDecision, typeof CheckCircle2> = {
 };
 
 export default function AdminReviewer() {
+  return (
+    <ReviewerLoginGate>
+      <AdminReviewerInner />
+    </ReviewerLoginGate>
+  );
+}
+
+function AdminReviewerInner() {
+  const { user: reviewer, logout, can } = useReviewerAuth();
+  const REVIEWER = { id: reviewer!.id, name: reviewer!.name };
   const [queue, setQueue] = useState<QueueDoc[]>(() => loadQueue());
   const [audit, setAudit] = useState<AuditEntry[]>(() => loadAudit());
   const [search, setSearch] = useState("");
