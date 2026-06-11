@@ -308,9 +308,15 @@ function AdminReviewerInner() {
                           </TableCell>
                           <TableCell>
                             {d.status === "uploaded" ? (
-                              <Button size="sm" className="h-7 text-xs" onClick={() => openReview(d)}>
-                                <Eye className="h-3 w-3 mr-1" /> Review
-                              </Button>
+                              can("review.approve") || can("review.reject") ? (
+                                <Button size="sm" className="h-7 text-xs" onClick={() => openReview(d)}>
+                                  <Eye className="h-3 w-3 mr-1" /> Review
+                                </Button>
+                              ) : (
+                                <Button size="sm" variant="outline" disabled className="h-7 text-xs">
+                                  <LockIcon className="h-3 w-3 mr-1" /> Read-only
+                                </Button>
+                              )
                             ) : (
                               <span className="text-[11px] text-muted-foreground">Done</span>
                             )}
