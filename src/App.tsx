@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CompareFloatingBar } from "@/components/CompareFloatingBar";
 import { AuthProvider } from "@/lib/auth-context";
+import { ReviewerAuthProvider } from "@/lib/reviewer-auth";
 import { NotificationProvider } from "@/lib/notifications";
 import Index from "./pages/Index";
 import SupplierOnboarding from "./pages/SupplierOnboarding";
@@ -37,6 +38,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <ReviewerAuthProvider>
       <NotificationProvider>
       <TooltipProvider>
         <Toaster />
@@ -73,6 +75,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
       </NotificationProvider>
+      </ReviewerAuthProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
