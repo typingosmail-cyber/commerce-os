@@ -90,16 +90,31 @@ function AdminReviewerInner() {
   }, [queue, activeDoc]);
 
   const openReview = (doc: QueueDoc) => {
+    if (!can("review.approve") && !can("review.reject")) {
+      toast.error("Read-only access", { description: "Your role cannot take review actions." });
+      return;
+    }
     setActiveDoc(doc);
     setDecision("approved");
     setSelectedReasons([]);
     setNote("");
   };
 
+  const DECISION_PERMS: Record<ReviewDecision, ReviewerPermission> = {
+    approved: "review.approve",
+    rejected: "review.reject",
+    needs_info: "review.needs_info",
+    escalated: "review.escalate",
+  };
+
   const availableReasons = REASON_CODES.filter(r => r.appliesTo.includes(decision));
 
   const submitDecision = () => {
     if (!activeDoc) return;
+    if (!can(DECISION_PERMS[decision])) {
+      toast.error("Permission denied", { description: `Your role (${ROLE_LABELS[reviewer!.role]}) cannot ${decision.replace("_", " ")} documents.` });
+      return;
+    }
     if (selectedReasons.length === 0) {
       toast.error("Select at least one reason code");
       return;
