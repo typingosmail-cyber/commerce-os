@@ -169,20 +169,26 @@ function AdminReviewerInner() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <ShieldCheck className="h-6 w-6 text-primary" />
               <h1 className="text-2xl md:text-3xl font-bold">Reviewer Console</h1>
               <Badge variant="outline" className="text-[10px]">
                 <User className="h-3 w-3 mr-1" /> {REVIEWER.name} · {REVIEWER.id}
               </Badge>
+              <Badge className="text-[10px]">{ROLE_LABELS[reviewer!.role]}</Badge>
             </div>
             <p className="text-sm text-muted-foreground">
               Approve, reject, or escalate supplier KYC documents. All decisions are audit-logged.
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={exportAudit}><Download className="h-4 w-4 mr-1" /> Export Audit</Button>
-            <Button variant="outline" size="sm" onClick={handleResetQueue}><RotateCcw className="h-4 w-4 mr-1" /> Reset Queue</Button>
+            {can("audit.export") && (
+              <Button variant="outline" size="sm" onClick={exportAudit}><Download className="h-4 w-4 mr-1" /> Export Audit</Button>
+            )}
+            {can("queue.reset") && (
+              <Button variant="outline" size="sm" onClick={handleResetQueue}><RotateCcw className="h-4 w-4 mr-1" /> Reset Queue</Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={logout}><LogOut className="h-4 w-4 mr-1" /> Sign out</Button>
           </div>
         </div>
 
