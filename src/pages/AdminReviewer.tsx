@@ -66,6 +66,10 @@ function AdminReviewerInner() {
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [supplierDrillDown, setSupplierDrillDown] = useState<string | null>(null);
+  const [outbox, setOutbox] = useState<MockEmail[]>(() => loadOutbox());
+  const { addNotification } = useNotifications();
+
+  useEffect(() => onOutboxChange(() => setOutbox(loadOutbox())), []);
 
   const stats = useMemo(() => computeStats(queue, audit), [queue, audit]);
 
