@@ -271,6 +271,10 @@ function AdminReviewerInner() {
             <TabsTrigger value="queue">Review Queue</TabsTrigger>
             <TabsTrigger value="audit">Audit Trail</TabsTrigger>
             <TabsTrigger value="codes">Reason Codes</TabsTrigger>
+            <TabsTrigger value="outbox" className="gap-1">
+              <Mail className="h-3 w-3" /> Email Outbox
+              {outbox.length > 0 && <Badge variant="secondary" className="ml-1 h-4 text-[10px] px-1">{outbox.length}</Badge>}
+            </TabsTrigger>
           </TabsList>
 
           {/* QUEUE */}
