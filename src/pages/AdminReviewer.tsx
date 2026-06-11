@@ -27,6 +27,9 @@ import {
 } from "@/lib/reviewer";
 import { ReviewerLoginGate } from "@/components/admin/ReviewerLoginGate";
 import { useReviewerAuth, ROLE_LABELS, type ReviewerPermission } from "@/lib/reviewer-auth";
+import { sendMockEmail, loadOutbox, onOutboxChange, supplierContactFor, type MockEmail } from "@/lib/email-outbox";
+import { useNotifications } from "@/lib/notifications";
+import { Mail, MailCheck, MailX } from "lucide-react";
 
 const DECISION_LABEL: Record<ReviewDecision, string> = {
   approved: "Approve",
@@ -63,6 +66,10 @@ function AdminReviewerInner() {
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [supplierDrillDown, setSupplierDrillDown] = useState<string | null>(null);
+  const [outbox, setOutbox] = useState<MockEmail[]>(() => loadOutbox());
+  const { addNotification } = useNotifications();
+
+  useEffect(() => onOutboxChange(() => setOutbox(loadOutbox())), []);
 
   const stats = useMemo(() => computeStats(queue, audit), [queue, audit]);
 
@@ -143,10 +150,53 @@ function AdminReviewerInner() {
     setQueue(updatedQueue);
     saveQueue(updatedQueue);
     setAudit([entry, ...audit]);
+
+    // Notify submitter — email (mock) + in-app — for actionable decisions only.
+    const notifyKinds: ReviewDecision[] = ["approved", "rejected", "needs_info"];
+    if (notifyKinds.includes(decision)) {
+      const contact = supplierContactFor(activeDoc.supplierId, activeDoc.supplierName);
+      const reasonLabels = selectedReasons.map(c =>
+        REASON_CODES.find(r => r.code === c)?.label || c
+      );
+      const email = sendMockEmail({
+        kind: decision as "approved" | "rejected" | "needs_info",
+        to: contact.email,
+        toName: contact.name,
+        supplierId: activeDoc.supplierId,
+        documentName: activeDoc.name,
+        reasonCodes: selectedReasons,
+        reasonLabels,
+        note: note.trim(),
+        reviewerName: REVIEWER.name,
+      });
+
+      const titleMap = {
+        approved: "Document Approved",
+        rejected: "Document Rejected",
+        needs_info: "More Information Requested",
+      } as const;
+      const k = decision as keyof typeof titleMap;
+      addNotification({
+        type: decision === "approved" ? "trust" : "system",
+        title: titleMap[k],
+        message: `${activeDoc.name} for ${activeDoc.supplierName} — ${reasonLabels[0] || decision}.`,
+        actionUrl: "/supplier/verification",
+        metadata: { supplierId: activeDoc.supplierId, documentId: activeDoc.id, emailId: email.id },
+      });
+
+      toast.success(`Document ${decision.replace("_", " ")}`, {
+        description: email.status === "sent"
+          ? `Email sent to ${contact.email} · in-app alert delivered`
+          : `In-app alert delivered · email failed to ${contact.email}`,
+      });
+    } else {
+      // escalated — internal only, no submitter notification
+      toast.success(`Document escalated`, {
+        description: `${activeDoc.name} sent to compliance. Submitter not notified.`,
+      });
+    }
+
     setActiveDoc(null);
-    toast.success(`Document ${decision.replace("_", " ")}`, {
-      description: `${activeDoc.name} for ${activeDoc.supplierName}`,
-    });
   };
 
   const handleResetQueue = () => {
@@ -221,6 +271,10 @@ function AdminReviewerInner() {
             <TabsTrigger value="queue">Review Queue</TabsTrigger>
             <TabsTrigger value="audit">Audit Trail</TabsTrigger>
             <TabsTrigger value="codes">Reason Codes</TabsTrigger>
+            <TabsTrigger value="outbox" className="gap-1">
+              <Mail className="h-3 w-3" /> Email Outbox
+              {outbox.length > 0 && <Badge variant="secondary" className="ml-1 h-4 text-[10px] px-1">{outbox.length}</Badge>}
+            </TabsTrigger>
           </TabsList>
 
           {/* QUEUE */}
@@ -429,8 +483,62 @@ function AdminReviewerInner() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* EMAIL OUTBOX */}
+          <TabsContent value="outbox" className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Mail className="h-4 w-4" /> Email Outbox
+                </CardTitle>
+                <CardDescription>
+                  Notifications sent to submitters when decisions are made ({outbox.length} sent).
+                  <span className="block text-[11px] mt-1">Prototype: emails are simulated and stored locally.</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {outbox.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No emails sent yet. Approve, reject, or request info on a document to notify the supplier.</p>
+                ) : (
+                  <ScrollArea className="h-[500px] pr-3">
+                    <div className="space-y-2">
+                      {outbox.map(e => (
+                        <div key={e.id} className="rounded-lg border p-3">
+                          <div className="flex items-start justify-between gap-3 mb-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className={`h-8 w-8 rounded-md flex items-center justify-center shrink-0 ${
+                                e.status === "sent" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"
+                              }`}>
+                                {e.status === "sent" ? <MailCheck className="h-4 w-4" /> : <MailX className="h-4 w-4" />}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium truncate">{e.subject}</p>
+                                <p className="text-[11px] text-muted-foreground truncate">
+                                  To: {e.toName} &lt;{e.to}&gt; · {e.supplierId}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <Badge variant="outline" className={`text-[10px] capitalize ${
+                                e.kind === "approved" ? "bg-success/15 text-success border-success/30" :
+                                e.kind === "rejected" ? "bg-destructive/15 text-destructive border-destructive/30" :
+                                "bg-yellow-500/15 text-yellow-700 border-yellow-500/30"
+                              }`}>{e.kind.replace("_", " ")}</Badge>
+                              <span className="text-[10px] text-muted-foreground">{timeAgo(e.sentAt)}</span>
+                            </div>
+                          </div>
+                          <pre className="text-[11px] text-muted-foreground whitespace-pre-wrap font-sans bg-muted/30 rounded p-2 border max-h-32 overflow-y-auto">{e.body}</pre>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
+
 
       {/* Review Dialog */}
       <Dialog open={!!activeDoc} onOpenChange={o => !o && setActiveDoc(null)}>
