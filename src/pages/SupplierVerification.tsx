@@ -12,8 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   Upload, FileCheck2, CheckCircle2, XCircle, AlertCircle, Shield, ShieldCheck,
-  Award, Crown, ShieldOff, Search, Loader2, Sparkles, TrendingUp, Lock, FileText,
+  Award, Crown, ShieldOff, Search, Loader2, Sparkles, TrendingUp, Lock, FileText, Bell,
 } from "lucide-react";
+import { NotificationPreferencesPanel } from "@/components/supplier/NotificationPreferencesPanel";
 import {
   BADGE_TIERS, DEFAULT_DOCS, computeScore, getTier, getNextTier,
   mockGSTCrossCheck, type VerificationDoc, type GSTCrossCheck, type BadgeTier,
@@ -118,6 +119,7 @@ export default function SupplierVerification() {
             <TabsTrigger value="documents"><FileText className="h-4 w-4 mr-2" />Documents</TabsTrigger>
             <TabsTrigger value="gst"><Search className="h-4 w-4 mr-2" />GST Cross-Check</TabsTrigger>
             <TabsTrigger value="badges"><Award className="h-4 w-4 mr-2" />Badge System</TabsTrigger>
+            <TabsTrigger value="notifications"><Bell className="h-4 w-4 mr-2" />Notifications</TabsTrigger>
           </TabsList>
 
           {/* Documents */}
@@ -268,6 +270,10 @@ export default function SupplierVerification() {
                 <p>• Verified badges unlock escrow protection and BNPL credit access</p>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="notifications" className="space-y-4">
+            <NotificationPreferencesPanel />
           </TabsContent>
         </Tabs>
       </main>
