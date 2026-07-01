@@ -119,6 +119,7 @@ export default function SupplierVerification() {
             <TabsTrigger value="documents"><FileText className="h-4 w-4 mr-2" />Documents</TabsTrigger>
             <TabsTrigger value="gst"><Search className="h-4 w-4 mr-2" />GST Cross-Check</TabsTrigger>
             <TabsTrigger value="badges"><Award className="h-4 w-4 mr-2" />Badge System</TabsTrigger>
+            <TabsTrigger value="notifications"><Bell className="h-4 w-4 mr-2" />Notifications</TabsTrigger>
           </TabsList>
 
           {/* Documents */}
