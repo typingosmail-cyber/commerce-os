@@ -29,6 +29,7 @@ import { ReviewerLoginGate } from "@/components/admin/ReviewerLoginGate";
 import { useReviewerAuth, ROLE_LABELS, type ReviewerPermission } from "@/lib/reviewer-auth";
 import { sendMockEmail, loadOutbox, onOutboxChange, supplierContactFor, type MockEmail } from "@/lib/email-outbox";
 import { useNotifications } from "@/lib/notifications";
+import { loadPrefs, decideDispatch, enqueueDigest, getPrefForDoc } from "@/lib/notification-preferences";
 import { Mail, MailCheck, MailX } from "lucide-react";
 
 const DECISION_LABEL: Record<ReviewDecision, string> = {
