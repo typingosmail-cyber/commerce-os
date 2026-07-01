@@ -271,6 +271,10 @@ export default function SupplierVerification() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="notifications" className="space-y-4">
+            <NotificationPreferencesPanel />
+          </TabsContent>
         </Tabs>
       </main>
       <Footer />
