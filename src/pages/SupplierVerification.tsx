@@ -12,8 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   Upload, FileCheck2, CheckCircle2, XCircle, AlertCircle, Shield, ShieldCheck,
-  Award, Crown, ShieldOff, Search, Loader2, Sparkles, TrendingUp, Lock, FileText,
+  Award, Crown, ShieldOff, Search, Loader2, Sparkles, TrendingUp, Lock, FileText, Bell,
 } from "lucide-react";
+import { NotificationPreferencesPanel } from "@/components/supplier/NotificationPreferencesPanel";
 import {
   BADGE_TIERS, DEFAULT_DOCS, computeScore, getTier, getNextTier,
   mockGSTCrossCheck, type VerificationDoc, type GSTCrossCheck, type BadgeTier,
