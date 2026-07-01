@@ -152,43 +152,78 @@ function AdminReviewerInner() {
     saveQueue(updatedQueue);
     setAudit([entry, ...audit]);
 
-    // Notify submitter — email (mock) + in-app — for actionable decisions only.
+    // Notify submitter — email (mock) + in-app — for actionable decisions only,
+    // respecting each submitter's notification preferences per document type.
     const notifyKinds: ReviewDecision[] = ["approved", "rejected", "needs_info"];
     if (notifyKinds.includes(decision)) {
       const contact = supplierContactFor(activeDoc.supplierId, activeDoc.supplierName);
       const reasonLabels = selectedReasons.map(c =>
         REASON_CODES.find(r => r.code === c)?.label || c
       );
-      const email = sendMockEmail({
-        kind: decision as "approved" | "rejected" | "needs_info",
-        to: contact.email,
-        toName: contact.name,
-        supplierId: activeDoc.supplierId,
-        documentName: activeDoc.name,
-        reasonCodes: selectedReasons,
-        reasonLabels,
-        note: note.trim(),
-        reviewerName: REVIEWER.name,
-      });
+      const kind = decision as "approved" | "rejected" | "needs_info";
+      const docTypeId = activeDoc.id.split("-")[0]; // reviewer queue ids are `<docType>-<supplier>-<n>`
+      const prefs = loadPrefs();
+      const dispatch = decideDispatch(prefs, docTypeId, kind);
+      const docTypePref = getPrefForDoc(prefs, docTypeId);
 
       const titleMap = {
         approved: "Document Approved",
         rejected: "Document Rejected",
         needs_info: "More Information Requested",
       } as const;
-      const k = decision as keyof typeof titleMap;
-      addNotification({
-        type: decision === "approved" ? "trust" : "system",
-        title: titleMap[k],
-        message: `${activeDoc.name} for ${activeDoc.supplierName} — ${reasonLabels[0] || decision}.`,
-        actionUrl: "/supplier/verification",
-        metadata: { supplierId: activeDoc.supplierId, documentId: activeDoc.id, emailId: email.id },
-      });
+
+      let email: MockEmail | null = null;
+      let emailQueued = false;
+      let inAppSent = false;
+      let inAppQueued = false;
+
+      // ---- Email channel ----
+      if (dispatch.email === "send") {
+        email = sendMockEmail({
+          kind, to: contact.email, toName: contact.name,
+          supplierId: activeDoc.supplierId, documentName: activeDoc.name,
+          reasonCodes: selectedReasons, reasonLabels, note: note.trim(),
+          reviewerName: REVIEWER.name,
+        });
+      } else if (dispatch.email === "digest") {
+        enqueueDigest({
+          channel: "email", supplierId: activeDoc.supplierId, supplierName: activeDoc.supplierName,
+          submitterEmail: contact.email, documentTypeId: docTypeId, documentName: activeDoc.name,
+          decision: kind, reasonLabels, note: note.trim(), reviewerName: REVIEWER.name,
+          frequency: docTypePref.email.frequency,
+        });
+        emailQueued = true;
+      }
+
+      // ---- In-app channel ----
+      if (dispatch.inApp === "send") {
+        addNotification({
+          type: decision === "approved" ? "trust" : "system",
+          title: titleMap[kind],
+          message: `${activeDoc.name} for ${activeDoc.supplierName} — ${reasonLabels[0] || decision}.`,
+          actionUrl: "/supplier/verification",
+          metadata: { supplierId: activeDoc.supplierId, documentId: activeDoc.id, emailId: email?.id },
+        });
+        inAppSent = true;
+      } else if (dispatch.inApp === "digest") {
+        enqueueDigest({
+          channel: "inApp", supplierId: activeDoc.supplierId, supplierName: activeDoc.supplierName,
+          submitterEmail: contact.email, documentTypeId: docTypeId, documentName: activeDoc.name,
+          decision: kind, reasonLabels, note: note.trim(), reviewerName: REVIEWER.name,
+          frequency: docTypePref.inApp.frequency,
+        });
+        inAppQueued = true;
+      }
+
+      const parts: string[] = [];
+      if (email) parts.push(email.status === "sent" ? `email → ${contact.email}` : `email failed → ${contact.email}`);
+      if (emailQueued) parts.push(`email queued (${docTypePref.email.frequency})`);
+      if (inAppSent) parts.push("in-app delivered");
+      if (inAppQueued) parts.push(`in-app queued (${docTypePref.inApp.frequency})`);
+      if (dispatch.email === "off" && dispatch.inApp === "off") parts.push("submitter opted out for this doc type");
 
       toast.success(`Document ${decision.replace("_", " ")}`, {
-        description: email.status === "sent"
-          ? `Email sent to ${contact.email} · in-app alert delivered`
-          : `In-app alert delivered · email failed to ${contact.email}`,
+        description: parts.join(" · ") || dispatch.reason,
       });
     } else {
       // escalated — internal only, no submitter notification
