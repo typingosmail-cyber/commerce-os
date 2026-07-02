@@ -127,123 +127,170 @@ function AdminReviewerInner() {
 
   const availableReasons = REASON_CODES.filter(r => r.appliesTo.includes(decision));
 
+  /**
+   * Process a decision for a single document. Mutates the given queue array,
+   * appends to audit, dispatches notifications (respecting prefs) and returns
+   * a compact per-document result the caller can summarise.
+   */
+  const processDocDecision = (
+    doc: QueueDoc,
+    dec: ReviewDecision,
+    reasons: string[],
+    noteText: string,
+    workingQueue: QueueDoc[],
+    workingAudit: AuditEntry[],
+  ): { ok: boolean; parts: string[]; reason?: string } => {
+    const newStatus = decisionToStatus(dec, doc.status);
+    const entry = appendAudit({
+      reviewerId: REVIEWER.id,
+      reviewerName: REVIEWER.name,
+      supplierId: doc.supplierId,
+      documentId: doc.id,
+      documentName: doc.name,
+      decision: dec,
+      reasonCodes: reasons,
+      note: noteText.trim(),
+      previousStatus: doc.status,
+      newStatus,
+    });
+    const idx = workingQueue.findIndex(q => q.id === doc.id);
+    if (idx >= 0) workingQueue[idx] = { ...workingQueue[idx], status: newStatus, reviewerNote: noteText.trim() };
+    workingAudit.unshift(entry);
+
+    const notifyKinds: ReviewDecision[] = ["approved", "rejected", "needs_info"];
+    if (!notifyKinds.includes(dec)) {
+      return { ok: true, parts: ["escalated — submitter not notified"] };
+    }
+
+    const contact = supplierContactFor(doc.supplierId, doc.supplierName);
+    const reasonLabels = reasons.map(c => REASON_CODES.find(r => r.code === c)?.label || c);
+    const kind = dec as "approved" | "rejected" | "needs_info";
+    const docTypeId = doc.id.split("-")[0];
+    const prefs = loadPrefs();
+    const dispatch = decideDispatch(prefs, docTypeId, kind);
+    const docTypePref = getPrefForDoc(prefs, docTypeId);
+
+    const titleMap = {
+      approved: "Document Approved",
+      rejected: "Document Rejected",
+      needs_info: "More Information Requested",
+    } as const;
+
+    let email: MockEmail | null = null;
+    let emailQueued = false;
+    let inAppSent = false;
+    let inAppQueued = false;
+
+    if (dispatch.email === "send") {
+      email = sendMockEmail({
+        kind, to: contact.email, toName: contact.name,
+        supplierId: doc.supplierId, documentName: doc.name,
+        reasonCodes: reasons, reasonLabels, note: noteText.trim(),
+        reviewerName: REVIEWER.name,
+      });
+    } else if (dispatch.email === "digest") {
+      enqueueDigest({
+        channel: "email", supplierId: doc.supplierId, supplierName: doc.supplierName,
+        submitterEmail: contact.email, documentTypeId: docTypeId, documentName: doc.name,
+        decision: kind, reasonLabels, note: noteText.trim(), reviewerName: REVIEWER.name,
+        frequency: docTypePref.email.frequency,
+      });
+      emailQueued = true;
+    }
+
+    if (dispatch.inApp === "send") {
+      addNotification({
+        type: dec === "approved" ? "trust" : "system",
+        title: titleMap[kind],
+        message: `${doc.name} for ${doc.supplierName} — ${reasonLabels[0] || dec}.`,
+        actionUrl: "/supplier/verification",
+        metadata: { supplierId: doc.supplierId, documentId: doc.id, emailId: email?.id },
+      });
+      inAppSent = true;
+    } else if (dispatch.inApp === "digest") {
+      enqueueDigest({
+        channel: "inApp", supplierId: doc.supplierId, supplierName: doc.supplierName,
+        submitterEmail: contact.email, documentTypeId: docTypeId, documentName: doc.name,
+        decision: kind, reasonLabels, note: noteText.trim(), reviewerName: REVIEWER.name,
+        frequency: docTypePref.inApp.frequency,
+      });
+      inAppQueued = true;
+    }
+
+    const parts: string[] = [];
+    if (email) parts.push(email.status === "sent" ? `email → ${contact.email}` : `email failed → ${contact.email}`);
+    if (emailQueued) parts.push(`email queued (${docTypePref.email.frequency})`);
+    if (inAppSent) parts.push("in-app delivered");
+    if (inAppQueued) parts.push(`in-app queued (${docTypePref.inApp.frequency})`);
+    if (dispatch.email === "off" && dispatch.inApp === "off") parts.push("submitter opted out for this doc type");
+
+    return { ok: true, parts, reason: dispatch.reason };
+  };
+
   const submitDecision = () => {
     if (!activeDoc) return;
     if (!can(DECISION_PERMS[decision])) {
       toast.error("Permission denied", { description: `Your role (${ROLE_LABELS[reviewer!.role]}) cannot ${decision.replace("_", " ")} documents.` });
       return;
     }
-    if (selectedReasons.length === 0) {
-      toast.error("Select at least one reason code");
-      return;
-    }
+    if (selectedReasons.length === 0) { toast.error("Select at least one reason code"); return; }
     if ((decision === "rejected" || decision === "escalated") && note.trim().length < 10) {
-      toast.error("Reviewer note required (≥ 10 chars) for rejections / escalations");
-      return;
+      toast.error("Reviewer note required (≥ 10 chars) for rejections / escalations"); return;
     }
-    const newStatus = decisionToStatus(decision, activeDoc.status);
-    const entry = appendAudit({
-      reviewerId: REVIEWER.id,
-      reviewerName: REVIEWER.name,
-      supplierId: activeDoc.supplierId,
-      documentId: activeDoc.id,
-      documentName: activeDoc.name,
-      decision,
-      reasonCodes: selectedReasons,
-      note: note.trim(),
-      previousStatus: activeDoc.status,
-      newStatus,
+
+    const workingQueue = [...queue];
+    const workingAudit = [...audit];
+    const res = processDocDecision(activeDoc, decision, selectedReasons, note, workingQueue, workingAudit);
+    setQueue(workingQueue); saveQueue(workingQueue);
+    setAudit(workingAudit);
+
+    toast.success(`Document ${decision.replace("_", " ")}`, {
+      description: res.parts.join(" · ") || res.reason || "Done",
     });
-    const updatedQueue = queue.map(q => q.id === activeDoc.id
-      ? { ...q, status: newStatus, reviewerNote: note.trim() }
-      : q
-    );
-    setQueue(updatedQueue);
-    saveQueue(updatedQueue);
-    setAudit([entry, ...audit]);
-
-    // Notify submitter — email (mock) + in-app — for actionable decisions only,
-    // respecting each submitter's notification preferences per document type.
-    const notifyKinds: ReviewDecision[] = ["approved", "rejected", "needs_info"];
-    if (notifyKinds.includes(decision)) {
-      const contact = supplierContactFor(activeDoc.supplierId, activeDoc.supplierName);
-      const reasonLabels = selectedReasons.map(c =>
-        REASON_CODES.find(r => r.code === c)?.label || c
-      );
-      const kind = decision as "approved" | "rejected" | "needs_info";
-      const docTypeId = activeDoc.id.split("-")[0]; // reviewer queue ids are `<docType>-<supplier>-<n>`
-      const prefs = loadPrefs();
-      const dispatch = decideDispatch(prefs, docTypeId, kind);
-      const docTypePref = getPrefForDoc(prefs, docTypeId);
-
-      const titleMap = {
-        approved: "Document Approved",
-        rejected: "Document Rejected",
-        needs_info: "More Information Requested",
-      } as const;
-
-      let email: MockEmail | null = null;
-      let emailQueued = false;
-      let inAppSent = false;
-      let inAppQueued = false;
-
-      // ---- Email channel ----
-      if (dispatch.email === "send") {
-        email = sendMockEmail({
-          kind, to: contact.email, toName: contact.name,
-          supplierId: activeDoc.supplierId, documentName: activeDoc.name,
-          reasonCodes: selectedReasons, reasonLabels, note: note.trim(),
-          reviewerName: REVIEWER.name,
-        });
-      } else if (dispatch.email === "digest") {
-        enqueueDigest({
-          channel: "email", supplierId: activeDoc.supplierId, supplierName: activeDoc.supplierName,
-          submitterEmail: contact.email, documentTypeId: docTypeId, documentName: activeDoc.name,
-          decision: kind, reasonLabels, note: note.trim(), reviewerName: REVIEWER.name,
-          frequency: docTypePref.email.frequency,
-        });
-        emailQueued = true;
-      }
-
-      // ---- In-app channel ----
-      if (dispatch.inApp === "send") {
-        addNotification({
-          type: decision === "approved" ? "trust" : "system",
-          title: titleMap[kind],
-          message: `${activeDoc.name} for ${activeDoc.supplierName} — ${reasonLabels[0] || decision}.`,
-          actionUrl: "/supplier/verification",
-          metadata: { supplierId: activeDoc.supplierId, documentId: activeDoc.id, emailId: email?.id },
-        });
-        inAppSent = true;
-      } else if (dispatch.inApp === "digest") {
-        enqueueDigest({
-          channel: "inApp", supplierId: activeDoc.supplierId, supplierName: activeDoc.supplierName,
-          submitterEmail: contact.email, documentTypeId: docTypeId, documentName: activeDoc.name,
-          decision: kind, reasonLabels, note: note.trim(), reviewerName: REVIEWER.name,
-          frequency: docTypePref.inApp.frequency,
-        });
-        inAppQueued = true;
-      }
-
-      const parts: string[] = [];
-      if (email) parts.push(email.status === "sent" ? `email → ${contact.email}` : `email failed → ${contact.email}`);
-      if (emailQueued) parts.push(`email queued (${docTypePref.email.frequency})`);
-      if (inAppSent) parts.push("in-app delivered");
-      if (inAppQueued) parts.push(`in-app queued (${docTypePref.inApp.frequency})`);
-      if (dispatch.email === "off" && dispatch.inApp === "off") parts.push("submitter opted out for this doc type");
-
-      toast.success(`Document ${decision.replace("_", " ")}`, {
-        description: parts.join(" · ") || dispatch.reason,
-      });
-    } else {
-      // escalated — internal only, no submitter notification
-      toast.success(`Document escalated`, {
-        description: `${activeDoc.name} sent to compliance. Submitter not notified.`,
-      });
-    }
-
     setActiveDoc(null);
   };
+
+  // ============ BULK ACTIONS ============
+  const availableBulkReasons = REASON_CODES.filter(r => r.appliesTo.includes(bulkDecision));
+
+  const selectedDocs = queue.filter(q => selectedIds.includes(q.id));
+  const bulkTargetDocs = selectedDocs.filter(d => d.status === "pending" || d.status === "in_review");
+
+  const openBulkDialog = () => {
+    if (bulkTargetDocs.length === 0) { toast.error("No pending / in-review docs selected"); return; }
+    setBulkDecision("approved"); setBulkReasons([]); setBulkNote("");
+    setBulkOpen(true);
+  };
+
+  const submitBulk = async () => {
+    if (!can(DECISION_PERMS[bulkDecision])) {
+      toast.error("Permission denied", { description: `Your role (${ROLE_LABELS[reviewer!.role]}) cannot ${bulkDecision.replace("_", " ")} documents.` });
+      return;
+    }
+    if (bulkReasons.length === 0) { toast.error("Select at least one reason code"); return; }
+    if ((bulkDecision === "rejected" || bulkDecision === "escalated") && bulkNote.trim().length < 10) {
+      toast.error("Reviewer note required (≥ 10 chars) for rejections / escalations"); return;
+    }
+
+    setBulkRunning(true);
+    const workingQueue = [...queue];
+    const workingAudit = [...audit];
+    let success = 0;
+    for (const doc of bulkTargetDocs) {
+      processDocDecision(doc, bulkDecision, bulkReasons, bulkNote, workingQueue, workingAudit);
+      success++;
+    }
+    setQueue(workingQueue); saveQueue(workingQueue);
+    setAudit(workingAudit);
+    setBulkRunning(false);
+    setBulkOpen(false);
+    setSelectedIds([]);
+
+    toast.success(`Bulk ${bulkDecision.replace("_", " ")} · ${success} document${success === 1 ? "" : "s"}`, {
+      description: `Reasons: ${bulkReasons.map(c => REASON_CODES.find(r => r.code === c)?.label || c).join(", ")}`,
+    });
+  };
+
 
   const handleResetQueue = () => {
     setQueue(resetQueue());
