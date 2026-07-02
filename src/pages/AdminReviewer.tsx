@@ -411,6 +411,18 @@ function AdminReviewerInner() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8">
+                        <Checkbox
+                          checked={
+                            filteredQueue.filter(d => d.status === "uploaded").length > 0 &&
+                            filteredQueue.filter(d => d.status === "uploaded").every(d => selectedIds.includes(d.id))
+                          }
+                          onCheckedChange={v => {
+                            const pendingIds = filteredQueue.filter(d => d.status === "uploaded").map(d => d.id);
+                            setSelectedIds(v ? Array.from(new Set([...selectedIds, ...pendingIds])) : selectedIds.filter(id => !pendingIds.includes(id)));
+                          }}
+                        />
+                      </TableHead>
                       <TableHead>Priority</TableHead>
                       <TableHead>Supplier</TableHead>
                       <TableHead>Document</TableHead>
@@ -423,8 +435,16 @@ function AdminReviewerInner() {
                   <TableBody>
                     {filteredQueue.map(d => {
                       const overdue = new Date(d.slaDueAt).getTime() < Date.now();
+                      const isPending = d.status === "uploaded";
                       return (
                         <TableRow key={d.id} className={overdue && d.status === "uploaded" ? "bg-destructive/5" : ""}>
+                          <TableCell>
+                            <Checkbox
+                              disabled={!isPending}
+                              checked={selectedIds.includes(d.id)}
+                              onCheckedChange={v => setSelectedIds(v ? [...selectedIds, d.id] : selectedIds.filter(id => id !== d.id))}
+                            />
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={`${PRIORITY_STYLE[d.priority]} text-[10px] capitalize`}>{d.priority}</Badge>
                           </TableCell>
@@ -476,7 +496,7 @@ function AdminReviewerInner() {
                       );
                     })}
                     {filteredQueue.length === 0 && (
-                      <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">Queue is clear 🎉</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">Queue is clear 🎉</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
