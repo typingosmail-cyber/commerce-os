@@ -254,7 +254,7 @@ function AdminReviewerInner() {
   const availableBulkReasons = REASON_CODES.filter(r => r.appliesTo.includes(bulkDecision));
 
   const selectedDocs = queue.filter(q => selectedIds.includes(q.id));
-  const bulkTargetDocs = selectedDocs.filter(d => d.status === "pending" || d.status === "in_review");
+  const bulkTargetDocs = selectedDocs.filter(d => d.status === "uploaded");
 
   const openBulkDialog = () => {
     if (bulkTargetDocs.length === 0) { toast.error("No pending / in-review docs selected"); return; }
