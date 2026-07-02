@@ -578,8 +578,14 @@ function AdminReviewerInner() {
               </CardContent>
             </Card>
           </TabsContent>
+          {/* SLA REMINDERS */}
+          <TabsContent value="sla" className="space-y-4">
+            <SlaRemindersPanel queue={queue} reviewerName={REVIEWER.name} onReviewDoc={openReview} />
+          </TabsContent>
         </Tabs>
       </div>
+
+
 
 
       {/* Review Dialog */}
