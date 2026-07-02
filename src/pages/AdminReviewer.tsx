@@ -309,6 +309,10 @@ function AdminReviewerInner() {
             <TabsTrigger value="queue">Review Queue</TabsTrigger>
             <TabsTrigger value="audit">Audit Trail</TabsTrigger>
             <TabsTrigger value="codes">Reason Codes</TabsTrigger>
+            <TabsTrigger value="sla" className="gap-1">
+              <AlarmClock className="h-3 w-3" /> SLA Reminders
+              {(() => { const s = slaSummary(queue, loadSlaConfig().warnHours); const n = s.overdue + s.unacked; return n > 0 ? <Badge variant="destructive" className="ml-1 h-4 text-[10px] px-1">{n}</Badge> : null; })()}
+            </TabsTrigger>
             <TabsTrigger value="outbox" className="gap-1">
               <Mail className="h-3 w-3" /> Email Outbox
               {outbox.length > 0 && <Badge variant="secondary" className="ml-1 h-4 text-[10px] px-1">{outbox.length}</Badge>}
