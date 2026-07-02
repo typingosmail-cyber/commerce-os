@@ -407,6 +407,22 @@ function AdminReviewerInner() {
                   </div>
                 </div>
               </CardHeader>
+              {selectedIds.length > 0 && (
+                <div className="mx-6 mb-3 flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
+                  <div className="text-xs">
+                    <span className="font-semibold">{selectedIds.length}</span> selected
+                    {bulkTargetDocs.length !== selectedIds.length && (
+                      <span className="text-muted-foreground"> · {bulkTargetDocs.length} actionable (uploaded only)</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds([])}>Clear</Button>
+                    <Button size="sm" className="h-7 text-xs" onClick={openBulkDialog} disabled={bulkTargetDocs.length === 0}>
+                      Bulk decision ({bulkTargetDocs.length})
+                    </Button>
+                  </div>
+                </div>
+              )}
               <CardContent>
                 <Table>
                   <TableHeader>
