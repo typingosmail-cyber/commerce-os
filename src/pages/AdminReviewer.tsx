@@ -30,7 +30,9 @@ import { useReviewerAuth, ROLE_LABELS, type ReviewerPermission } from "@/lib/rev
 import { sendMockEmail, loadOutbox, onOutboxChange, supplierContactFor, type MockEmail } from "@/lib/email-outbox";
 import { useNotifications } from "@/lib/notifications";
 import { loadPrefs, decideDispatch, enqueueDigest, getPrefForDoc } from "@/lib/notification-preferences";
-import { Mail, MailCheck, MailX } from "lucide-react";
+import { Mail, MailCheck, MailX, AlarmClock } from "lucide-react";
+import { SlaRemindersPanel } from "@/components/admin/SlaRemindersPanel";
+import { slaSummary, loadSlaConfig } from "@/lib/sla-reminders";
 
 const DECISION_LABEL: Record<ReviewDecision, string> = {
   approved: "Approve",
@@ -307,6 +309,10 @@ function AdminReviewerInner() {
             <TabsTrigger value="queue">Review Queue</TabsTrigger>
             <TabsTrigger value="audit">Audit Trail</TabsTrigger>
             <TabsTrigger value="codes">Reason Codes</TabsTrigger>
+            <TabsTrigger value="sla" className="gap-1">
+              <AlarmClock className="h-3 w-3" /> SLA Reminders
+              {(() => { const s = slaSummary(queue, loadSlaConfig().warnHours); const n = s.overdue + s.unacked; return n > 0 ? <Badge variant="destructive" className="ml-1 h-4 text-[10px] px-1">{n}</Badge> : null; })()}
+            </TabsTrigger>
             <TabsTrigger value="outbox" className="gap-1">
               <Mail className="h-3 w-3" /> Email Outbox
               {outbox.length > 0 && <Badge variant="secondary" className="ml-1 h-4 text-[10px] px-1">{outbox.length}</Badge>}
@@ -572,8 +578,14 @@ function AdminReviewerInner() {
               </CardContent>
             </Card>
           </TabsContent>
+          {/* SLA REMINDERS */}
+          <TabsContent value="sla" className="space-y-4">
+            <SlaRemindersPanel queue={queue} reviewerName={REVIEWER.name} onReviewDoc={openReview} />
+          </TabsContent>
         </Tabs>
       </div>
+
+
 
 
       {/* Review Dialog */}
