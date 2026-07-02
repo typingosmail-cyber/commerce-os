@@ -790,6 +790,78 @@ function AdminReviewerInner() {
         </DialogContent>
       </Dialog>
 
+      {/* Bulk decision dialog */}
+      <Dialog open={bulkOpen} onOpenChange={o => !bulkRunning && setBulkOpen(o)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bulk decision · {bulkTargetDocs.length} documents</DialogTitle>
+            <DialogDescription>
+              Applies the same decision, reason codes and note to every selected document. Only documents in "uploaded" status are actionable.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-md border bg-muted/30 p-2 max-h-40 overflow-y-auto">
+              {bulkTargetDocs.map(d => (
+                <div key={d.id} className="flex items-center justify-between py-1 text-xs">
+                  <span className="truncate">{d.supplierName} — <span className="text-muted-foreground">{d.name}</span></span>
+                  <Badge variant="outline" className={`${PRIORITY_STYLE[d.priority]} text-[10px] capitalize`}>{d.priority}</Badge>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <Label className="text-xs">Decision</Label>
+              <Select value={bulkDecision} onValueChange={v => { setBulkDecision(v as ReviewDecision); setBulkReasons([]); }}>
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approved" disabled={!can("review.approve")}>Approve all</SelectItem>
+                  <SelectItem value="rejected" disabled={!can("review.reject")}>Reject all</SelectItem>
+                  <SelectItem value="needs_info" disabled={!can("review.needs_info")}>Request more info</SelectItem>
+                  <SelectItem value="escalated" disabled={!can("review.escalate")}>Escalate all</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs">Reason codes (shared)</Label>
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                {availableBulkReasons.map(r => (
+                  <label key={r.code} className="flex items-start gap-2 rounded-md border p-2 text-xs cursor-pointer hover:bg-muted/50">
+                    <Checkbox
+                      checked={bulkReasons.includes(r.code)}
+                      onCheckedChange={v => setBulkReasons(v ? [...bulkReasons, r.code] : bulkReasons.filter(c => c !== r.code))}
+                    />
+                    <div>
+                      <div className="font-medium">{r.label}</div>
+                      <div className="text-[11px] text-muted-foreground">{r.code}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Shared reviewer note {(bulkDecision === "rejected" || bulkDecision === "escalated") && <span className="text-destructive">*</span>}</Label>
+              <Textarea
+                className="mt-1"
+                rows={3}
+                placeholder="Applied to every document in this batch and to submitter notifications."
+                value={bulkNote}
+                onChange={e => setBulkNote(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setBulkOpen(false)} disabled={bulkRunning}>Cancel</Button>
+              <Button onClick={submitBulk} disabled={bulkRunning}>
+                {bulkRunning ? "Processing..." : `Apply to ${bulkTargetDocs.length} document${bulkTargetDocs.length === 1 ? "" : "s"}`}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
       {/* Supplier audit drilldown */}
       <Dialog open={!!supplierDrillDown} onOpenChange={o => !o && setSupplierDrillDown(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
