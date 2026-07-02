@@ -72,6 +72,14 @@ function AdminReviewerInner() {
   const [outbox, setOutbox] = useState<MockEmail[]>(() => loadOutbox());
   const { addNotification } = useNotifications();
 
+  // ---- Bulk selection state ----
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkDecision, setBulkDecision] = useState<ReviewDecision>("approved");
+  const [bulkReasons, setBulkReasons] = useState<string[]>([]);
+  const [bulkNote, setBulkNote] = useState("");
+  const [bulkRunning, setBulkRunning] = useState(false);
+
   useEffect(() => onOutboxChange(() => setOutbox(loadOutbox())), []);
 
   const stats = useMemo(() => computeStats(queue, audit), [queue, audit]);
