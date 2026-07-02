@@ -30,7 +30,9 @@ import { useReviewerAuth, ROLE_LABELS, type ReviewerPermission } from "@/lib/rev
 import { sendMockEmail, loadOutbox, onOutboxChange, supplierContactFor, type MockEmail } from "@/lib/email-outbox";
 import { useNotifications } from "@/lib/notifications";
 import { loadPrefs, decideDispatch, enqueueDigest, getPrefForDoc } from "@/lib/notification-preferences";
-import { Mail, MailCheck, MailX } from "lucide-react";
+import { Mail, MailCheck, MailX, AlarmClock } from "lucide-react";
+import { SlaRemindersPanel } from "@/components/admin/SlaRemindersPanel";
+import { slaSummary, loadSlaConfig } from "@/lib/sla-reminders";
 
 const DECISION_LABEL: Record<ReviewDecision, string> = {
   approved: "Approve",
