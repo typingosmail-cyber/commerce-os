@@ -933,3 +933,57 @@ function StatCard({ label, value, icon: Icon, tone }: { label: string; value: nu
     </Card>
   );
 }
+
+function KycSummaryCard({ supplierId }: { supplierId: string }) {
+  const kyc: SupplierKyc | null = getSupplierKyc(supplierId);
+  if (!kyc) {
+    return (
+      <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+        No KYC state yet — decisions will populate this automatically.
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-lg border p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold">KYC Status</span>
+          <Badge variant="outline" className={`${KYC_STATUS_STYLE[kyc.status]} text-[10px]`}>
+            {KYC_STATUS_LABEL[kyc.status]}
+          </Badge>
+        </div>
+        <span className="text-[11px] text-muted-foreground">Updated {timeAgo(kyc.updatedAt)}</span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div>
+          <p className="text-muted-foreground">Doc Score</p>
+          <p className="text-base font-bold">{kyc.docScore}<span className="text-muted-foreground text-xs">/100</span></p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Required</p>
+          <p className="text-base font-bold">{kyc.requiredVerified}/{kyc.requiredTotal}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Verified · Rejected</p>
+          <p className="text-base font-bold">
+            <span className="text-success">{kyc.verifiedDocs}</span>
+            <span className="text-muted-foreground"> · </span>
+            <span className="text-destructive">{kyc.rejectedDocs}</span>
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Trust Score</p>
+          <p className="text-base font-bold">
+            {kyc.trustOverall}
+            <span className={`text-xs ml-1 ${kyc.trustDelta >= 0 ? "text-success" : "text-destructive"}`}>
+              ({kyc.trustDelta >= 0 ? "+" : ""}{kyc.trustDelta})
+            </span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+  );
+}
