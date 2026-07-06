@@ -229,6 +229,7 @@ function AdminReviewerInner() {
     if (inAppSent) parts.push("in-app delivered");
     if (inAppQueued) parts.push(`in-app queued (${docTypePref.inApp.frequency})`);
     if (dispatch.email === "off" && dispatch.inApp === "off") parts.push("submitter opted out for this doc type");
+    parts.push(kycSummary);
 
     return { ok: true, parts, reason: dispatch.reason };
   };
