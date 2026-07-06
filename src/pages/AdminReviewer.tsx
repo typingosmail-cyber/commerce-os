@@ -33,6 +33,7 @@ import { loadPrefs, decideDispatch, enqueueDigest, getPrefForDoc } from "@/lib/n
 import { Mail, MailCheck, MailX, AlarmClock } from "lucide-react";
 import { SlaRemindersPanel } from "@/components/admin/SlaRemindersPanel";
 import { slaSummary, loadSlaConfig } from "@/lib/sla-reminders";
+import { refreshSupplierKyc, getSupplierKyc, KYC_STATUS_STYLE, KYC_STATUS_LABEL, type SupplierKyc } from "@/lib/supplier-kyc";
 
 const DECISION_LABEL: Record<ReviewDecision, string> = {
   approved: "Approve",
