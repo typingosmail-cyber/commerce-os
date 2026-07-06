@@ -158,6 +158,9 @@ function AdminReviewerInner() {
     if (idx >= 0) workingQueue[idx] = { ...workingQueue[idx], status: newStatus, reviewerNote: noteText.trim() };
     workingAudit.unshift(entry);
 
+    // Refresh supplier KYC + trust score from the updated queue snapshot.
+    const kyc = refreshSupplierKyc(doc.supplierId, doc.supplierName, workingQueue);
+
     const notifyKinds: ReviewDecision[] = ["approved", "rejected", "needs_info"];
     if (!notifyKinds.includes(dec)) {
       return { ok: true, parts: ["escalated — submitter not notified"] };
