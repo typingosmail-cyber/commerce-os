@@ -985,5 +985,4 @@ function KycSummaryCard({ supplierId }: { supplierId: string }) {
     </div>
   );
 }
-  );
-}
+
