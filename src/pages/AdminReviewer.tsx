@@ -161,9 +161,11 @@ function AdminReviewerInner() {
     // Refresh supplier KYC + trust score from the updated queue snapshot.
     const kyc = refreshSupplierKyc(doc.supplierId, doc.supplierName, workingQueue);
 
+    const kycSummary = `KYC: ${KYC_STATUS_LABEL[kyc.status]} · trust ${kyc.trustOverall} (${kyc.trustDelta >= 0 ? "+" : ""}${kyc.trustDelta})`;
+
     const notifyKinds: ReviewDecision[] = ["approved", "rejected", "needs_info"];
     if (!notifyKinds.includes(dec)) {
-      return { ok: true, parts: ["escalated — submitter not notified"] };
+      return { ok: true, parts: ["escalated — submitter not notified", kycSummary] };
     }
 
     const contact = supplierContactFor(doc.supplierId, doc.supplierName);
