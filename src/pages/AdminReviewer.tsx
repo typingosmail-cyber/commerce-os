@@ -33,6 +33,7 @@ import { loadPrefs, decideDispatch, enqueueDigest, getPrefForDoc } from "@/lib/n
 import { Mail, MailCheck, MailX, AlarmClock } from "lucide-react";
 import { SlaRemindersPanel } from "@/components/admin/SlaRemindersPanel";
 import { slaSummary, loadSlaConfig } from "@/lib/sla-reminders";
+import { refreshSupplierKyc, getSupplierKyc, KYC_STATUS_STYLE, KYC_STATUS_LABEL, type SupplierKyc } from "@/lib/supplier-kyc";
 
 const DECISION_LABEL: Record<ReviewDecision, string> = {
   approved: "Approve",
@@ -157,9 +158,14 @@ function AdminReviewerInner() {
     if (idx >= 0) workingQueue[idx] = { ...workingQueue[idx], status: newStatus, reviewerNote: noteText.trim() };
     workingAudit.unshift(entry);
 
+    // Refresh supplier KYC + trust score from the updated queue snapshot.
+    const kyc = refreshSupplierKyc(doc.supplierId, doc.supplierName, workingQueue);
+
+    const kycSummary = `KYC: ${KYC_STATUS_LABEL[kyc.status]} · trust ${kyc.trustOverall} (${kyc.trustDelta >= 0 ? "+" : ""}${kyc.trustDelta})`;
+
     const notifyKinds: ReviewDecision[] = ["approved", "rejected", "needs_info"];
     if (!notifyKinds.includes(dec)) {
-      return { ok: true, parts: ["escalated — submitter not notified"] };
+      return { ok: true, parts: ["escalated — submitter not notified", kycSummary] };
     }
 
     const contact = supplierContactFor(doc.supplierId, doc.supplierName);
@@ -223,6 +229,7 @@ function AdminReviewerInner() {
     if (inAppSent) parts.push("in-app delivered");
     if (inAppQueued) parts.push(`in-app queued (${docTypePref.inApp.frequency})`);
     if (dispatch.email === "off" && dispatch.inApp === "off") parts.push("submitter opted out for this doc type");
+    parts.push(kycSummary);
 
     return { ok: true, parts, reason: dispatch.reason };
   };
@@ -869,6 +876,7 @@ function AdminReviewerInner() {
             <DialogTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" /> Supplier Audit History</DialogTitle>
             <DialogDescription>Every decision recorded for {supplierDrillDown}</DialogDescription>
           </DialogHeader>
+          {supplierDrillDown && <KycSummaryCard supplierId={supplierDrillDown} />}
           {supplierAudit.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No prior decisions for this supplier.</p>
           ) : (
@@ -925,3 +933,56 @@ function StatCard({ label, value, icon: Icon, tone }: { label: string; value: nu
     </Card>
   );
 }
+
+function KycSummaryCard({ supplierId }: { supplierId: string }) {
+  const kyc: SupplierKyc | null = getSupplierKyc(supplierId);
+  if (!kyc) {
+    return (
+      <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+        No KYC state yet — decisions will populate this automatically.
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-lg border p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold">KYC Status</span>
+          <Badge variant="outline" className={`${KYC_STATUS_STYLE[kyc.status]} text-[10px]`}>
+            {KYC_STATUS_LABEL[kyc.status]}
+          </Badge>
+        </div>
+        <span className="text-[11px] text-muted-foreground">Updated {timeAgo(kyc.updatedAt)}</span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div>
+          <p className="text-muted-foreground">Doc Score</p>
+          <p className="text-base font-bold">{kyc.docScore}<span className="text-muted-foreground text-xs">/100</span></p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Required</p>
+          <p className="text-base font-bold">{kyc.requiredVerified}/{kyc.requiredTotal}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Verified · Rejected</p>
+          <p className="text-base font-bold">
+            <span className="text-success">{kyc.verifiedDocs}</span>
+            <span className="text-muted-foreground"> · </span>
+            <span className="text-destructive">{kyc.rejectedDocs}</span>
+          </p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Trust Score</p>
+          <p className="text-base font-bold">
+            {kyc.trustOverall}
+            <span className={`text-xs ml-1 ${kyc.trustDelta >= 0 ? "text-success" : "text-destructive"}`}>
+              ({kyc.trustDelta >= 0 ? "+" : ""}{kyc.trustDelta})
+            </span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
