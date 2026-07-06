@@ -876,6 +876,7 @@ function AdminReviewerInner() {
             <DialogTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" /> Supplier Audit History</DialogTitle>
             <DialogDescription>Every decision recorded for {supplierDrillDown}</DialogDescription>
           </DialogHeader>
+          {supplierDrillDown && <KycSummaryCard supplierId={supplierDrillDown} />}
           {supplierAudit.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No prior decisions for this supplier.</p>
           ) : (
