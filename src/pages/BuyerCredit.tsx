@@ -12,8 +12,9 @@ import { Slider } from "@/components/ui/slider";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth-context";
-import { mockProfile, simulateOrder, aprFor, computeLimit, generateSchedule, nextDueInstallment, generateAuditTrail, summarizeAuditTrail, auditEventMeta, evaluateBuyerRisk, mockBuyerRiskMetrics, buyerRiskTone, type CreditLimitAuditEntry, type BuyerRiskAssessment, type BuyerRiskAction } from "@/lib/bnpl";
+import { mockProfile, simulateOrder, aprFor, computeLimit, generateSchedule, nextDueInstallment, generateAuditTrail, summarizeAuditTrail, auditEventMeta, evaluateBuyerRisk, mockBuyerRiskMetrics, buyerRiskTone, effectiveOutstanding, addPartialRepayment, getPartialRepayments, getPartialPaidForLine, type CreditLimitAuditEntry, type BuyerRiskAssessment, type BuyerRiskAction, type CreditLine, type ScheduleInstallment } from "@/lib/bnpl";
 import {
   CreditCard, TrendingUp, ShieldCheck, Clock, Sparkles, AlertTriangle,
   ArrowUpRight, Wallet, Calculator, Award, ChevronDown, ChevronRight, CalendarDays,
@@ -47,9 +48,12 @@ export default function BuyerCredit() {
   const sim = simulateOrder(profile, orderAmount, tenure);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [autopayTick, setAutopayTick] = useState(0);
+  const [repayTick, setRepayTick] = useState(0);
+  const [repayLine, setRepayLine] = useState<CreditLine | null>(null);
   const schedules = useMemo(
     () => Object.fromEntries(profile.creditLines.map((cl) => [cl.id, generateSchedule(cl)])),
-    [profile],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [profile, repayTick],
   );
   const auditTrail = useMemo(() => generateAuditTrail(profile), [profile]);
   const risk = useMemo(() => {
@@ -362,7 +366,18 @@ export default function BuyerCredit() {
                             </TableCell>
                             <TableCell className="font-mono text-xs">{cl.orderRef}</TableCell>
                             <TableCell>{cl.supplierName}</TableCell>
-                            <TableCell className="font-semibold">{fmt(cl.outstanding)}</TableCell>
+                            <TableCell className="font-semibold">
+                              {(() => { void repayTick; const eff = effectiveOutstanding(cl); return (
+                                <div className="flex flex-col">
+                                  <span>{fmt(eff)}</span>
+                                  {eff < cl.outstanding && (
+                                    <span className="text-[10px] text-success">
+                                      −{fmt(cl.outstanding - eff)} repaid
+                                    </span>
+                                  )}
+                                </div>
+                              ); })()}
+                            </TableCell>
                             <TableCell className="text-xs">
                               {next && cl.status === "active" ? (
                                 <div className="flex flex-col">
@@ -387,9 +402,9 @@ export default function BuyerCredit() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                              {cl.status === "active" && next ? (
-                                <Button size="sm" variant="outline" onClick={() => toast({ title: "EMI paid", description: `${fmt(next.total)} debited for installment #${next.installmentNo}` })}>
-                                  Pay EMI
+                              {cl.status === "active" && effectiveOutstanding(cl) > 0 ? (
+                                <Button size="sm" variant="outline" onClick={() => setRepayLine(cl)}>
+                                  Repay
                                 </Button>
                               ) : (
                                 <span className="text-xs text-muted-foreground">—</span>
@@ -420,6 +435,7 @@ export default function BuyerCredit() {
                                         <TableHead className="h-9">Interest</TableHead>
                                         <TableHead className="h-9">Fee</TableHead>
                                         <TableHead className="h-9">Total EMI</TableHead>
+                                        <TableHead className="h-9">Paid</TableHead>
                                         <TableHead className="h-9">Remaining</TableHead>
                                         <TableHead className="h-9">Status</TableHead>
                                         <TableHead className="h-9">AutoPay</TableHead>
@@ -437,16 +453,22 @@ export default function BuyerCredit() {
                                           <TableCell className="py-2 text-xs">{fmt(inst.interest)}</TableCell>
                                           <TableCell className="py-2 text-xs">{fmt(inst.fee)}</TableCell>
                                           <TableCell className="py-2 text-xs font-semibold">{fmt(inst.total)}</TableCell>
-                                          <TableCell className="py-2 text-xs text-muted-foreground">{fmt(inst.remainingPrincipal)}</TableCell>
+                                          <TableCell className="py-2 text-xs text-success">
+                                            {inst.paidAmount > 0 ? fmt(inst.paidAmount) : "—"}
+                                          </TableCell>
+                                          <TableCell className="py-2 text-xs text-muted-foreground">
+                                            {fmt(inst.remainingAmount)}
+                                          </TableCell>
                                           <TableCell className="py-2">
                                             <Badge
                                               variant={
                                                 inst.status === "paid" ? "outline"
                                                 : inst.status === "overdue" ? "destructive"
                                                 : inst.status === "due" ? "default"
+                                                : inst.status === "partial" ? "outline"
                                                 : "secondary"
                                               }
-                                              className="capitalize text-[10px]"
+                                              className={`capitalize text-[10px] ${inst.status === "partial" ? "bg-warning/10 text-warning border-warning/30" : ""}`}
                                             >
                                               {inst.status}
                                             </Badge>
@@ -574,10 +596,169 @@ export default function BuyerCredit() {
           </TabsContent>
         </Tabs>
       </main>
+      <RepayDialog
+        line={repayLine}
+        schedule={repayLine ? schedules[repayLine.id] : undefined}
+        onClose={() => setRepayLine(null)}
+        onPaid={() => { setRepayTick((n) => n + 1); }}
+      />
       <Footer />
     </div>
   );
 }
+
+function RepayDialog({
+  line, schedule, onClose, onPaid,
+}: {
+  line: CreditLine | null;
+  schedule?: ScheduleInstallment[];
+  onClose: () => void;
+  onPaid: () => void;
+}) {
+  const open = !!line;
+  const outstanding = line ? effectiveOutstanding(line) : 0;
+  const nextInst = schedule?.find((s) => s.status !== "paid");
+  const suggestedEmi = nextInst?.remainingAmount ?? 0;
+  const [amount, setAmount] = useState<number>(suggestedEmi || 0);
+
+  useEffect(() => {
+    setAmount(suggestedEmi || Math.min(10000, outstanding));
+  }, [line?.id, suggestedEmi, outstanding]);
+
+  if (!line) return null;
+
+  const invalid = amount <= 0 || amount > outstanding;
+  const priorPayments = getPartialRepayments(line.id);
+
+  // Preview: simulate the schedule after this payment (waterfall on next unpaid installments)
+  const preview = (() => {
+    if (!schedule) return [];
+    let toApply = Math.min(amount, outstanding);
+    return schedule.map((inst) => {
+      if (inst.status === "paid") return { ...inst, newPaid: inst.paidAmount, newRemaining: 0, applied: 0 };
+      const applied = Math.min(toApply, inst.remainingAmount);
+      toApply -= applied;
+      const newPaid = inst.paidAmount + applied;
+      const newRemaining = inst.remainingAmount - applied;
+      return { ...inst, newPaid, newRemaining, applied };
+    });
+  })();
+
+  const submit = () => {
+    if (invalid) return;
+    addPartialRepayment(line.id, amount, `Repayment towards ${line.orderRef}`);
+    toast({
+      title: `${fmt(amount)} repayment recorded`,
+      description: amount >= outstanding
+        ? `${line.orderRef} fully repaid`
+        : `New outstanding: ${fmt(outstanding - amount)}`,
+    });
+    onPaid();
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Repay {line.orderRef}</DialogTitle>
+          <DialogDescription>
+            Pay any amount — the schedule automatically re-applies principal, interest and fees earliest first.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-lg border p-3">
+              <p className="text-[10px] text-muted-foreground uppercase">Outstanding</p>
+              <p className="text-lg font-display font-bold">{fmt(outstanding)}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-[10px] text-muted-foreground uppercase">Next EMI</p>
+              <p className="text-lg font-display font-bold">{fmt(suggestedEmi)}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-[10px] text-muted-foreground uppercase">Prior part-pays</p>
+              <p className="text-lg font-display font-bold">{priorPayments.length}</p>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Amount to repay</Label>
+            <Input
+              type="number"
+              value={amount}
+              min={1}
+              max={outstanding}
+              onChange={(e) => setAmount(Math.max(0, Number(e.target.value) || 0))}
+              className="mt-1"
+            />
+            <Slider
+              value={[Math.min(amount, outstanding)]}
+              max={Math.max(outstanding, 1)}
+              step={500}
+              onValueChange={(v) => setAmount(v[0])}
+              className="mt-3"
+            />
+            <div className="mt-2 flex gap-1.5 flex-wrap">
+              {[suggestedEmi, Math.round(outstanding / 2), outstanding].filter((n, i, a) => n > 0 && a.indexOf(n) === i).map((preset) => (
+                <Button key={preset} type="button" size="sm" variant="outline" onClick={() => setAmount(preset)}>
+                  {preset === outstanding ? "Full" : preset === suggestedEmi ? "Next EMI" : "Half"}: {fmt(preset)}
+                </Button>
+              ))}
+            </div>
+            {invalid && (
+              <p className="text-xs text-destructive mt-2">
+                {amount <= 0 ? "Enter an amount greater than zero." : `Cannot exceed outstanding of ${fmt(outstanding)}.`}
+              </p>
+            )}
+          </div>
+
+          {preview.length > 0 && (
+            <div className="rounded-lg border max-h-48 overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="h-8 text-[11px]">#</TableHead>
+                    <TableHead className="h-8 text-[11px]">Total</TableHead>
+                    <TableHead className="h-8 text-[11px]">Applied now</TableHead>
+                    <TableHead className="h-8 text-[11px]">Remaining after</TableHead>
+                    <TableHead className="h-8 text-[11px]">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {preview.map((p) => {
+                    const nowPaid = p.newRemaining < 0.5;
+                    const st = nowPaid ? "paid" : p.newPaid > 0.5 ? "partial" : p.status;
+                    return (
+                      <TableRow key={p.installmentNo}>
+                        <TableCell className="py-1.5 text-[11px] font-mono">#{p.installmentNo}</TableCell>
+                        <TableCell className="py-1.5 text-[11px]">{fmt(p.total)}</TableCell>
+                        <TableCell className="py-1.5 text-[11px] text-success">{p.applied > 0 ? `+${fmt(p.applied)}` : "—"}</TableCell>
+                        <TableCell className="py-1.5 text-[11px]">{fmt(Math.max(0, Math.round(p.newRemaining)))}</TableCell>
+                        <TableCell className="py-1.5">
+                          <Badge variant="outline" className={`capitalize text-[10px] ${st === "partial" ? "bg-warning/10 text-warning border-warning/30" : st === "paid" ? "bg-success/10 text-success border-success/30" : ""}`}>
+                            {st}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={invalid}>
+            <Wallet className="h-4 w-4 mr-1.5" /> Pay {fmt(amount)}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
