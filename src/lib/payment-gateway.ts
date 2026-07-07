@@ -361,6 +361,106 @@ export function attemptsForLine(creditLineId: string): AutoDebitAttempt[] {
   return listAttempts().filter((a) => a.creditLineId === creditLineId);
 }
 
+/**
+ * Latest attempt for a specific line + installment. Prefers successful attempts,
+ * otherwise the most recent by attemptedAt.
+ */
+export function latestAttemptFor(
+  creditLineId: string,
+  installmentNo: number,
+): AutoDebitAttempt | undefined {
+  const all = listAttempts().filter(
+    (a) => a.creditLineId === creditLineId && a.installmentNo === installmentNo,
+  );
+  const success = all.find((a) => a.status === "success");
+  if (success) return success;
+  return all.sort((a, b) =>
+    (b.attemptedAt ?? "").localeCompare(a.attemptedAt ?? ""),
+  )[0];
+}
+
+/**
+ * Process autopay for the next due installment on each active credit line.
+ * Runs a debit when: global autopay is enabled, the line is enrolled, an active
+ * mandate exists, no prior successful attempt exists for that installment, and
+ * `scheduledFor` is on/before `today`. Returns per-line outcomes.
+ */
+export function runAutopayForLines(
+  lines: CreditLine[],
+  schedules: Record<string, ScheduleInstallment[]>,
+  today: Date = new Date(),
+): Array<{
+  creditLineId: string;
+  orderRef: string;
+  installmentNo?: number;
+  status: "debited" | "failed" | "retry_scheduled" | "skipped_not_due" | "skipped_disabled" | "skipped_no_mandate" | "skipped_already_paid" | "skipped_no_pending";
+  attempt?: AutoDebitAttempt;
+  message: string;
+}> {
+  const cfg = getAutoPayConfig();
+  const pm = defaultPaymentMethod();
+  const todayStr = today.toISOString().slice(0, 10);
+  const out: ReturnType<typeof runAutopayForLines> = [];
+
+  for (const line of lines) {
+    if (line.status !== "active") continue;
+    const sch = schedules[line.id] ?? [];
+    const next = sch.find((s) => s.status !== "paid");
+
+    if (!next) {
+      out.push({ creditLineId: line.id, orderRef: line.orderRef, status: "skipped_already_paid", message: "All installments paid" });
+      continue;
+    }
+    if (!cfg.enabled || !isLineEnrolled(line.id)) {
+      out.push({ creditLineId: line.id, orderRef: line.orderRef, installmentNo: next.installmentNo, status: "skipped_disabled", message: "AutoPay disabled for this line" });
+      continue;
+    }
+    if (!pm) {
+      out.push({ creditLineId: line.id, orderRef: line.orderRef, installmentNo: next.installmentNo, status: "skipped_no_mandate", message: "No active mandate available" });
+      continue;
+    }
+
+    const existing = latestAttemptFor(line.id, next.installmentNo);
+    if (existing?.status === "success") {
+      out.push({ creditLineId: line.id, orderRef: line.orderRef, installmentNo: next.installmentNo, status: "skipped_already_paid", message: "Installment already collected" });
+      continue;
+    }
+
+    const dueDate = new Date(next.dueDate);
+    const scheduledFor = new Date(dueDate.getTime() - cfg.debitOffsetDays * 86400000)
+      .toISOString().slice(0, 10);
+
+    if (scheduledFor > todayStr) {
+      out.push({ creditLineId: line.id, orderRef: line.orderRef, installmentNo: next.installmentNo, status: "skipped_not_due", message: `Auto-debit scheduled for ${scheduledFor}` });
+      continue;
+    }
+
+    const attempt = runDebit({
+      creditLineId: line.id,
+      installmentNo: next.installmentNo,
+      amount: next.total,
+      scheduledFor,
+      paymentMethodId: pm.id,
+      retryNo: existing ? existing.retryNo + 1 : 0,
+    });
+
+    out.push({
+      creditLineId: line.id,
+      orderRef: line.orderRef,
+      installmentNo: next.installmentNo,
+      status: attempt.status === "success" ? "debited"
+        : attempt.status === "retry_scheduled" ? "retry_scheduled"
+        : "failed",
+      attempt,
+      message: attempt.status === "success"
+        ? `Debited via ${attempt.provider} (${attempt.gatewayRef})`
+        : attempt.failureReason ?? "Debit failed",
+    });
+  }
+
+  return out;
+}
+
 export const PROVIDER_LABEL: Record<GatewayProvider, string> = {
   Razorpay: "Razorpay",
   Cashfree: "Cashfree Payments",
