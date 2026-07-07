@@ -326,9 +326,14 @@ export default function BuyerCredit() {
           {/* Active credit lines */}
           <TabsContent value="active" className="mt-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Credit Lines & Repayment Schedule</CardTitle>
-                <CardDescription>Auto-calculated installments based on tenure & disbursement date.</CardDescription>
+              <CardHeader className="flex-row items-start justify-between space-y-0">
+                <div>
+                  <CardTitle className="text-lg">Credit Lines & Repayment Schedule</CardTitle>
+                  <CardDescription>Auto-calculated installments based on tenure & disbursement date.</CardDescription>
+                </div>
+                <Button size="sm" variant="outline" onClick={triggerAutopay} className="gap-1.5">
+                  <Zap className="h-3.5 w-3.5 text-primary" /> Run AutoPay now
+                </Button>
               </CardHeader>
               <CardContent>
                 <Table>
