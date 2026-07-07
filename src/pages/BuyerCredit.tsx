@@ -46,6 +46,7 @@ export default function BuyerCredit() {
   const [tenure, setTenure] = useState<30 | 60 | 90>(60);
   const sim = simulateOrder(profile, orderAmount, tenure);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [autopayTick, setAutopayTick] = useState(0);
   const schedules = useMemo(
     () => Object.fromEntries(profile.creditLines.map((cl) => [cl.id, generateSchedule(cl)])),
     [profile],
@@ -55,6 +56,27 @@ export default function BuyerCredit() {
     const metrics = mockBuyerRiskMetrics(profile);
     return evaluateBuyerRisk(profile.buyerId, metrics, profile.approvedLimit);
   }, [profile]);
+
+  // Auto-run autopay on mount for any next-due installments whose scheduled
+  // debit date has arrived. Silent — surfaced via the schedule status column.
+  useEffect(() => {
+    const results = runAutopayForLines(profile.creditLines, schedules);
+    const acted = results.filter((r) => r.status === "debited" || r.status === "failed" || r.status === "retry_scheduled");
+    if (acted.length > 0) setAutopayTick((n) => n + 1);
+  }, [profile, schedules]);
+
+  const triggerAutopay = () => {
+    const results = runAutopayForLines(profile.creditLines, schedules);
+    setAutopayTick((n) => n + 1);
+    const debited = results.filter((r) => r.status === "debited").length;
+    const failed = results.filter((r) => r.status === "failed" || r.status === "retry_scheduled").length;
+    const pending = results.filter((r) => r.status === "skipped_not_due").length;
+    toast({
+      title: debited > 0 ? `AutoPay ran on ${debited} line${debited === 1 ? "" : "s"}` : "No installments due right now",
+      description: `${debited} debited · ${failed} failed · ${pending} scheduled for later`,
+      variant: failed > 0 ? "destructive" : "default",
+    });
+  };
 
   const effectiveLimit = risk.effectiveLimit;
   const effectiveAvailable = Math.max(0, effectiveLimit - profile.utilized);
