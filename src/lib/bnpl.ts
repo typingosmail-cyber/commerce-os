@@ -34,8 +34,12 @@ export interface ScheduleInstallment {
   fee: number;
   total: number;
   remainingPrincipal: number;
-  status: "paid" | "due" | "upcoming" | "overdue";
+  status: "paid" | "partial" | "due" | "upcoming" | "overdue";
   daysUntilDue: number;
+  /** Amount already applied to this installment via partial repayments (rounded INR). */
+  paidAmount: number;
+  /** Amount still owed on this installment (total - paidAmount). */
+  remainingAmount: number;
 }
 
 export interface BuyerCreditProfile {
