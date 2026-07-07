@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -18,11 +18,15 @@ import {
   CreditCard, TrendingUp, ShieldCheck, Clock, Sparkles, AlertTriangle,
   ArrowUpRight, Wallet, Calculator, Award, ChevronDown, ChevronRight, CalendarDays,
   TrendingDown, CheckCircle2, Trophy, AlertOctagon, BadgeCheck, UserCog, History, Download, ArrowDownRight,
-  ShieldAlert, Ban, Snowflake, Activity, Fingerprint, Gauge, Scale,
+  ShieldAlert, Ban, Snowflake, Activity, Fingerprint, Gauge, Scale, Zap, XCircle, Loader2, RefreshCw,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
 import { AutoRepaymentPanel } from "@/components/buyer/AutoRepaymentPanel";
+import {
+  runAutopayForLines, latestAttemptFor, isLineEnrolled, getAutoPayConfig,
+  type AutoDebitAttempt,
+} from "@/lib/payment-gateway";
 
 const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
