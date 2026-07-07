@@ -588,6 +588,54 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
   );
 }
 
+function AutopayCell({ inst, attempt, lineId }: { inst: { status: string; dueDate: string; installmentNo: number }; attempt?: AutoDebitAttempt; lineId: string }) {
+  const cfg = getAutoPayConfig();
+  const enrolled = isLineEnrolled(lineId) && cfg.enabled;
+
+  if (attempt?.status === "success") {
+    return (
+      <Badge variant="outline" className="bg-success/10 text-success border-success/30 gap-1 text-[10px]">
+        <CheckCircle2 className="h-3 w-3" /> Debited
+      </Badge>
+    );
+  }
+  if (attempt?.status === "processing") {
+    return (
+      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1 text-[10px]">
+        <Loader2 className="h-3 w-3 animate-spin" /> Processing
+      </Badge>
+    );
+  }
+  if (attempt?.status === "retry_scheduled") {
+    return (
+      <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 gap-1 text-[10px]" title={attempt.failureReason}>
+        <RefreshCw className="h-3 w-3" /> Retry queued
+      </Badge>
+    );
+  }
+  if (attempt?.status === "failed") {
+    return (
+      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 gap-1 text-[10px]" title={attempt.failureReason}>
+        <XCircle className="h-3 w-3" /> Failed
+      </Badge>
+    );
+  }
+  if (inst.status === "paid") {
+    return <span className="text-[10px] text-muted-foreground">—</span>;
+  }
+  if (!enrolled) {
+    return <Badge variant="outline" className="text-[10px]">Manual</Badge>;
+  }
+  const debitDate = new Date(new Date(inst.dueDate).getTime() - cfg.debitOffsetDays * 86400000)
+    .toISOString().slice(0, 10);
+  return (
+    <Badge variant="outline" className="gap-1 text-[10px]" title={`Auto-debit scheduled for ${debitDate}`}>
+      <Clock className="h-3 w-3" /> Scheduled
+    </Badge>
+  );
+}
+
+
 const EVENT_ICON_MAP = {
   Sparkles, TrendingUp, TrendingDown, CheckCircle2, AlertTriangle,
   Trophy, CalendarDays, ShieldCheck, AlertOctagon, BadgeCheck, UserCog,
