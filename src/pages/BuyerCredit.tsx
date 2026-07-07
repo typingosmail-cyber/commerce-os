@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -18,11 +18,15 @@ import {
   CreditCard, TrendingUp, ShieldCheck, Clock, Sparkles, AlertTriangle,
   ArrowUpRight, Wallet, Calculator, Award, ChevronDown, ChevronRight, CalendarDays,
   TrendingDown, CheckCircle2, Trophy, AlertOctagon, BadgeCheck, UserCog, History, Download, ArrowDownRight,
-  ShieldAlert, Ban, Snowflake, Activity, Fingerprint, Gauge, Scale,
+  ShieldAlert, Ban, Snowflake, Activity, Fingerprint, Gauge, Scale, Zap, XCircle, Loader2, RefreshCw,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
 import { AutoRepaymentPanel } from "@/components/buyer/AutoRepaymentPanel";
+import {
+  runAutopayForLines, latestAttemptFor, isLineEnrolled, getAutoPayConfig,
+  type AutoDebitAttempt,
+} from "@/lib/payment-gateway";
 
 const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
@@ -42,6 +46,7 @@ export default function BuyerCredit() {
   const [tenure, setTenure] = useState<30 | 60 | 90>(60);
   const sim = simulateOrder(profile, orderAmount, tenure);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [autopayTick, setAutopayTick] = useState(0);
   const schedules = useMemo(
     () => Object.fromEntries(profile.creditLines.map((cl) => [cl.id, generateSchedule(cl)])),
     [profile],
@@ -51,6 +56,27 @@ export default function BuyerCredit() {
     const metrics = mockBuyerRiskMetrics(profile);
     return evaluateBuyerRisk(profile.buyerId, metrics, profile.approvedLimit);
   }, [profile]);
+
+  // Auto-run autopay on mount for any next-due installments whose scheduled
+  // debit date has arrived. Silent — surfaced via the schedule status column.
+  useEffect(() => {
+    const results = runAutopayForLines(profile.creditLines, schedules);
+    const acted = results.filter((r) => r.status === "debited" || r.status === "failed" || r.status === "retry_scheduled");
+    if (acted.length > 0) setAutopayTick((n) => n + 1);
+  }, [profile, schedules]);
+
+  const triggerAutopay = () => {
+    const results = runAutopayForLines(profile.creditLines, schedules);
+    setAutopayTick((n) => n + 1);
+    const debited = results.filter((r) => r.status === "debited").length;
+    const failed = results.filter((r) => r.status === "failed" || r.status === "retry_scheduled").length;
+    const pending = results.filter((r) => r.status === "skipped_not_due").length;
+    toast({
+      title: debited > 0 ? `AutoPay ran on ${debited} line${debited === 1 ? "" : "s"}` : "No installments due right now",
+      description: `${debited} debited · ${failed} failed · ${pending} scheduled for later`,
+      variant: failed > 0 ? "destructive" : "default",
+    });
+  };
 
   const effectiveLimit = risk.effectiveLimit;
   const effectiveAvailable = Math.max(0, effectiveLimit - profile.utilized);
@@ -300,9 +326,14 @@ export default function BuyerCredit() {
           {/* Active credit lines */}
           <TabsContent value="active" className="mt-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Credit Lines & Repayment Schedule</CardTitle>
-                <CardDescription>Auto-calculated installments based on tenure & disbursement date.</CardDescription>
+              <CardHeader className="flex-row items-start justify-between space-y-0">
+                <div>
+                  <CardTitle className="text-lg">Credit Lines & Repayment Schedule</CardTitle>
+                  <CardDescription>Auto-calculated installments based on tenure & disbursement date.</CardDescription>
+                </div>
+                <Button size="sm" variant="outline" onClick={triggerAutopay} className="gap-1.5">
+                  <Zap className="h-3.5 w-3.5 text-primary" /> Run AutoPay now
+                </Button>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -371,6 +402,13 @@ export default function BuyerCredit() {
                                 <div className="flex items-center gap-2 mb-3 text-xs font-medium text-foreground">
                                   <CalendarDays className="h-3.5 w-3.5" />
                                   Repayment schedule · disbursed {cl.disbursedAt} · {cl.apr}% APR
+                                  {isLineEnrolled(cl.id) && getAutoPayConfig().enabled ? (
+                                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1 ml-1">
+                                      <Zap className="h-3 w-3" /> AutoPay on
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="ml-1">Manual</Badge>
+                                  )}
                                 </div>
                                 <div className="rounded-md border bg-background overflow-hidden">
                                   <Table>
@@ -384,10 +422,14 @@ export default function BuyerCredit() {
                                         <TableHead className="h-9">Total EMI</TableHead>
                                         <TableHead className="h-9">Remaining</TableHead>
                                         <TableHead className="h-9">Status</TableHead>
+                                        <TableHead className="h-9">AutoPay</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {schedule.map((inst) => (
+                                      {schedule.map((inst) => {
+                                        void autopayTick;
+                                        const att = latestAttemptFor(cl.id, inst.installmentNo);
+                                        return (
                                         <TableRow key={inst.installmentNo}>
                                           <TableCell className="py-2 font-mono text-xs">{inst.installmentNo}</TableCell>
                                           <TableCell className="py-2 text-xs">{inst.dueDate}</TableCell>
@@ -409,8 +451,12 @@ export default function BuyerCredit() {
                                               {inst.status}
                                             </Badge>
                                           </TableCell>
+                                          <TableCell className="py-2">
+                                            <AutopayCell inst={inst} attempt={att} lineId={cl.id} />
+                                          </TableCell>
                                         </TableRow>
-                                      ))}
+                                        );
+                                      })}
                                     </TableBody>
                                   </Table>
                                 </div>
@@ -541,6 +587,54 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
     </div>
   );
 }
+
+function AutopayCell({ inst, attempt, lineId }: { inst: { status: string; dueDate: string; installmentNo: number }; attempt?: AutoDebitAttempt; lineId: string }) {
+  const cfg = getAutoPayConfig();
+  const enrolled = isLineEnrolled(lineId) && cfg.enabled;
+
+  if (attempt?.status === "success") {
+    return (
+      <Badge variant="outline" className="bg-success/10 text-success border-success/30 gap-1 text-[10px]">
+        <CheckCircle2 className="h-3 w-3" /> Debited
+      </Badge>
+    );
+  }
+  if (attempt?.status === "processing") {
+    return (
+      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1 text-[10px]">
+        <Loader2 className="h-3 w-3 animate-spin" /> Processing
+      </Badge>
+    );
+  }
+  if (attempt?.status === "retry_scheduled") {
+    return (
+      <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 gap-1 text-[10px]" title={attempt.failureReason}>
+        <RefreshCw className="h-3 w-3" /> Retry queued
+      </Badge>
+    );
+  }
+  if (attempt?.status === "failed") {
+    return (
+      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 gap-1 text-[10px]" title={attempt.failureReason}>
+        <XCircle className="h-3 w-3" /> Failed
+      </Badge>
+    );
+  }
+  if (inst.status === "paid") {
+    return <span className="text-[10px] text-muted-foreground">—</span>;
+  }
+  if (!enrolled) {
+    return <Badge variant="outline" className="text-[10px]">Manual</Badge>;
+  }
+  const debitDate = new Date(new Date(inst.dueDate).getTime() - cfg.debitOffsetDays * 86400000)
+    .toISOString().slice(0, 10);
+  return (
+    <Badge variant="outline" className="gap-1 text-[10px]" title={`Auto-debit scheduled for ${debitDate}`}>
+      <Clock className="h-3 w-3" /> Scheduled
+    </Badge>
+  );
+}
+
 
 const EVENT_ICON_MAP = {
   Sparkles, TrendingUp, TrendingDown, CheckCircle2, AlertTriangle,
