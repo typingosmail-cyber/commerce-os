@@ -12,6 +12,7 @@ import { Slider } from "@/components/ui/slider";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth-context";
 import { mockProfile, simulateOrder, aprFor, computeLimit, generateSchedule, nextDueInstallment, generateAuditTrail, summarizeAuditTrail, auditEventMeta, evaluateBuyerRisk, mockBuyerRiskMetrics, buyerRiskTone, effectiveOutstanding, addPartialRepayment, getPartialRepayments, getPartialPaidForLine, type CreditLimitAuditEntry, type BuyerRiskAssessment, type BuyerRiskAction, type CreditLine, type ScheduleInstallment } from "@/lib/bnpl";
 import {
