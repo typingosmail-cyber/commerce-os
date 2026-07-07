@@ -402,6 +402,13 @@ export default function BuyerCredit() {
                                 <div className="flex items-center gap-2 mb-3 text-xs font-medium text-foreground">
                                   <CalendarDays className="h-3.5 w-3.5" />
                                   Repayment schedule · disbursed {cl.disbursedAt} · {cl.apr}% APR
+                                  {isLineEnrolled(cl.id) && getAutoPayConfig().enabled ? (
+                                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1 ml-1">
+                                      <Zap className="h-3 w-3" /> AutoPay on
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="ml-1">Manual</Badge>
+                                  )}
                                 </div>
                                 <div className="rounded-md border bg-background overflow-hidden">
                                   <Table>
@@ -415,10 +422,14 @@ export default function BuyerCredit() {
                                         <TableHead className="h-9">Total EMI</TableHead>
                                         <TableHead className="h-9">Remaining</TableHead>
                                         <TableHead className="h-9">Status</TableHead>
+                                        <TableHead className="h-9">AutoPay</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {schedule.map((inst) => (
+                                      {schedule.map((inst) => {
+                                        void autopayTick;
+                                        const att = latestAttemptFor(cl.id, inst.installmentNo);
+                                        return (
                                         <TableRow key={inst.installmentNo}>
                                           <TableCell className="py-2 font-mono text-xs">{inst.installmentNo}</TableCell>
                                           <TableCell className="py-2 text-xs">{inst.dueDate}</TableCell>
@@ -440,8 +451,12 @@ export default function BuyerCredit() {
                                               {inst.status}
                                             </Badge>
                                           </TableCell>
+                                          <TableCell className="py-2">
+                                            <AutopayCell inst={inst} attempt={att} lineId={cl.id} />
+                                          </TableCell>
                                         </TableRow>
-                                      ))}
+                                        );
+                                      })}
                                     </TableBody>
                                   </Table>
                                 </div>
