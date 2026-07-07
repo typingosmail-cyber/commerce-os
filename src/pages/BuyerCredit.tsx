@@ -434,6 +434,7 @@ export default function BuyerCredit() {
                                         <TableHead className="h-9">Interest</TableHead>
                                         <TableHead className="h-9">Fee</TableHead>
                                         <TableHead className="h-9">Total EMI</TableHead>
+                                        <TableHead className="h-9">Paid</TableHead>
                                         <TableHead className="h-9">Remaining</TableHead>
                                         <TableHead className="h-9">Status</TableHead>
                                         <TableHead className="h-9">AutoPay</TableHead>
@@ -451,16 +452,22 @@ export default function BuyerCredit() {
                                           <TableCell className="py-2 text-xs">{fmt(inst.interest)}</TableCell>
                                           <TableCell className="py-2 text-xs">{fmt(inst.fee)}</TableCell>
                                           <TableCell className="py-2 text-xs font-semibold">{fmt(inst.total)}</TableCell>
-                                          <TableCell className="py-2 text-xs text-muted-foreground">{fmt(inst.remainingPrincipal)}</TableCell>
+                                          <TableCell className="py-2 text-xs text-success">
+                                            {inst.paidAmount > 0 ? fmt(inst.paidAmount) : "—"}
+                                          </TableCell>
+                                          <TableCell className="py-2 text-xs text-muted-foreground">
+                                            {fmt(inst.remainingAmount)}
+                                          </TableCell>
                                           <TableCell className="py-2">
                                             <Badge
                                               variant={
                                                 inst.status === "paid" ? "outline"
                                                 : inst.status === "overdue" ? "destructive"
                                                 : inst.status === "due" ? "default"
+                                                : inst.status === "partial" ? "outline"
                                                 : "secondary"
                                               }
-                                              className="capitalize text-[10px]"
+                                              className={`capitalize text-[10px] ${inst.status === "partial" ? "bg-warning/10 text-warning border-warning/30" : ""}`}
                                             >
                                               {inst.status}
                                             </Badge>
