@@ -213,10 +213,18 @@ export function generateSchedule(line: CreditLine, today: Date = new Date()): Sc
   const installments = Math.max(1, line.tenureDays / 30);
   const disbursed = new Date(line.disbursedAt);
   const principalPerInstallment = line.principal / installments;
-  // Repaid principal so far (principal - outstanding) — distribute across earliest installments
-  let repaidPrincipal = line.principal - line.outstanding;
   const platformFeeTotal = Math.round(line.principal * 0.005);
   const feePerInstallment = platformFeeTotal / installments;
+
+  // Total funds paid on this line: baseline (principal - outstanding as of line seed)
+  // plus any partial repayments recorded after the fact. Applied as a waterfall
+  // (fee → interest → principal) across installments from earliest to latest.
+  const baselinePaidPrincipal = Math.max(0, line.principal - line.outstanding);
+  const extraPaid = getPartialPaidForLine(line.id);
+  // Baseline was recorded as principal-only in the seed; we treat it as full
+  // installment payments where possible, then let extraPaid flow via waterfall.
+  let baselinePrincipalRemaining = baselinePaidPrincipal;
+  let waterfall = extraPaid;
 
   const schedule: ScheduleInstallment[] = [];
   let remaining = line.principal;
@@ -224,19 +232,38 @@ export function generateSchedule(line: CreditLine, today: Date = new Date()): Sc
   for (let i = 1; i <= installments; i++) {
     const dueDate = new Date(disbursed);
     dueDate.setDate(dueDate.getDate() + i * 30);
-    // Interest: monthly accrual on remaining principal at start of period
     const interest = (remaining * line.apr * 30) / (100 * 365);
     const principalThis = principalPerInstallment;
     const total = principalThis + interest + feePerInstallment;
 
-    let status: ScheduleInstallment["status"];
-    const daysUntilDue = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
+    // 1) Baseline fully covers this installment when principal is settled.
+    let paidAmount = 0;
+    let fullyCovered = false;
+    if (baselinePrincipalRemaining >= principalThis - 0.01) {
+      baselinePrincipalRemaining -= principalThis;
+      paidAmount = total;
+      fullyCovered = true;
+    } else if (baselinePrincipalRemaining > 0) {
+      // Baseline partially covers this installment's principal.
+      paidAmount = baselinePrincipalRemaining + 0; // fee/interest not yet paid
+      baselinePrincipalRemaining = 0;
+    }
 
-    if (repaidPrincipal >= principalThis - 0.01) {
+    // 2) Waterfall extra repayments into remaining amount on this installment.
+    if (!fullyCovered && waterfall > 0) {
+      const owed = Math.max(0, total - paidAmount);
+      const applied = Math.min(waterfall, owed);
+      paidAmount += applied;
+      waterfall -= applied;
+      if (paidAmount >= total - 0.5) fullyCovered = true;
+    }
+
+    const daysUntilDue = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
+    let status: ScheduleInstallment["status"];
+    if (fullyCovered || line.status === "paid") {
       status = "paid";
-      repaidPrincipal -= principalThis;
-    } else if (line.status === "paid") {
-      status = "paid";
+    } else if (paidAmount > 0.5) {
+      status = "partial";
     } else if (daysUntilDue < 0) {
       status = "overdue";
     } else if (daysUntilDue <= 7) {
@@ -247,16 +274,20 @@ export function generateSchedule(line: CreditLine, today: Date = new Date()): Sc
 
     remaining -= principalThis;
 
+    const totalRounded = Math.round(total);
+    const paidRounded = Math.min(totalRounded, Math.round(paidAmount));
     schedule.push({
       installmentNo: i,
       dueDate: dueDate.toISOString().slice(0, 10),
       principal: Math.round(principalThis),
       interest: Math.round(interest),
       fee: Math.round(feePerInstallment),
-      total: Math.round(total),
+      total: totalRounded,
       remainingPrincipal: Math.max(0, Math.round(remaining)),
       status,
       daysUntilDue,
+      paidAmount: paidRounded,
+      remainingAmount: Math.max(0, totalRounded - paidRounded),
     });
   }
 
@@ -264,8 +295,71 @@ export function generateSchedule(line: CreditLine, today: Date = new Date()): Sc
 }
 
 export function nextDueInstallment(schedule: ScheduleInstallment[]): ScheduleInstallment | undefined {
-  return schedule.find((s) => s.status === "due" || s.status === "overdue" || s.status === "upcoming");
+  return schedule.find((s) => s.status !== "paid");
 }
+
+// ============================================================
+// Partial repayments — localStorage-backed
+// ============================================================
+
+export interface PartialRepayment {
+  id: string;
+  creditLineId: string;
+  amount: number;
+  date: string; // ISO
+  note?: string;
+}
+
+const PARTIAL_KEY = "vyapar_partial_repayments_v1";
+
+function loadPartial(): PartialRepayment[] {
+  try {
+    const raw = localStorage.getItem(PARTIAL_KEY);
+    return raw ? (JSON.parse(raw) as PartialRepayment[]) : [];
+  } catch { return []; }
+}
+function savePartial(list: PartialRepayment[]) {
+  try { localStorage.setItem(PARTIAL_KEY, JSON.stringify(list)); } catch { /* noop */ }
+}
+
+export function getPartialRepayments(creditLineId?: string): PartialRepayment[] {
+  const all = loadPartial();
+  return creditLineId ? all.filter((p) => p.creditLineId === creditLineId) : all;
+}
+
+export function getPartialPaidForLine(creditLineId: string): number {
+  return getPartialRepayments(creditLineId).reduce((a, p) => a + p.amount, 0);
+}
+
+export function addPartialRepayment(creditLineId: string, amount: number, note?: string): PartialRepayment {
+  const p: PartialRepayment = {
+    id: `pr_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    creditLineId,
+    amount: Math.max(0, Math.round(amount)),
+    date: new Date().toISOString(),
+    note,
+  };
+  const list = loadPartial();
+  list.unshift(p);
+  savePartial(list);
+  return p;
+}
+
+export function clearPartialRepayments(creditLineId?: string) {
+  if (!creditLineId) { savePartial([]); return; }
+  savePartial(loadPartial().filter((p) => p.creditLineId !== creditLineId));
+}
+
+/**
+ * Effective outstanding = seeded outstanding minus recorded partial repayments,
+ * floored at 0. Use this instead of `line.outstanding` in the UI when partial
+ * repayments are active.
+ */
+export function effectiveOutstanding(line: CreditLine): number {
+  return Math.max(0, line.outstanding - getPartialPaidForLine(line.id));
+}
+
+
 
 export type AuditEventType =
   | "initial_approval"
