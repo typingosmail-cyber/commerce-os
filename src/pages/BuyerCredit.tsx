@@ -365,7 +365,18 @@ export default function BuyerCredit() {
                             </TableCell>
                             <TableCell className="font-mono text-xs">{cl.orderRef}</TableCell>
                             <TableCell>{cl.supplierName}</TableCell>
-                            <TableCell className="font-semibold">{fmt(cl.outstanding)}</TableCell>
+                            <TableCell className="font-semibold">
+                              {(() => { void repayTick; const eff = effectiveOutstanding(cl); return (
+                                <div className="flex flex-col">
+                                  <span>{fmt(eff)}</span>
+                                  {eff < cl.outstanding && (
+                                    <span className="text-[10px] text-success">
+                                      −{fmt(cl.outstanding - eff)} repaid
+                                    </span>
+                                  )}
+                                </div>
+                              ); })()}
+                            </TableCell>
                             <TableCell className="text-xs">
                               {next && cl.status === "active" ? (
                                 <div className="flex flex-col">
@@ -390,9 +401,9 @@ export default function BuyerCredit() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                              {cl.status === "active" && next ? (
-                                <Button size="sm" variant="outline" onClick={() => toast({ title: "EMI paid", description: `${fmt(next.total)} debited for installment #${next.installmentNo}` })}>
-                                  Pay EMI
+                              {cl.status === "active" && effectiveOutstanding(cl) > 0 ? (
+                                <Button size="sm" variant="outline" onClick={() => setRepayLine(cl)}>
+                                  Repay
                                 </Button>
                               ) : (
                                 <span className="text-xs text-muted-foreground">—</span>
