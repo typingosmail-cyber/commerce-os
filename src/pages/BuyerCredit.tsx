@@ -47,9 +47,12 @@ export default function BuyerCredit() {
   const sim = simulateOrder(profile, orderAmount, tenure);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [autopayTick, setAutopayTick] = useState(0);
+  const [repayTick, setRepayTick] = useState(0);
+  const [repayLine, setRepayLine] = useState<CreditLine | null>(null);
   const schedules = useMemo(
     () => Object.fromEntries(profile.creditLines.map((cl) => [cl.id, generateSchedule(cl)])),
-    [profile],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [profile, repayTick],
   );
   const auditTrail = useMemo(() => generateAuditTrail(profile), [profile]);
   const risk = useMemo(() => {
