@@ -13,7 +13,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/lib/auth-context";
-import { mockProfile, simulateOrder, aprFor, computeLimit, generateSchedule, nextDueInstallment, generateAuditTrail, summarizeAuditTrail, auditEventMeta, evaluateBuyerRisk, mockBuyerRiskMetrics, buyerRiskTone, type CreditLimitAuditEntry, type BuyerRiskAssessment, type BuyerRiskAction } from "@/lib/bnpl";
+import { mockProfile, simulateOrder, aprFor, computeLimit, generateSchedule, nextDueInstallment, generateAuditTrail, summarizeAuditTrail, auditEventMeta, evaluateBuyerRisk, mockBuyerRiskMetrics, buyerRiskTone, effectiveOutstanding, addPartialRepayment, getPartialRepayments, getPartialPaidForLine, type CreditLimitAuditEntry, type BuyerRiskAssessment, type BuyerRiskAction, type CreditLine, type ScheduleInstallment } from "@/lib/bnpl";
 import {
   CreditCard, TrendingUp, ShieldCheck, Clock, Sparkles, AlertTriangle,
   ArrowUpRight, Wallet, Calculator, Award, ChevronDown, ChevronRight, CalendarDays,
