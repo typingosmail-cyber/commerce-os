@@ -24,6 +24,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
 import { AutoRepaymentPanel } from "@/components/buyer/AutoRepaymentPanel";
+import { DueRemindersPanel } from "@/components/buyer/DueRemindersPanel";
 import {
   runAutopayForLines, latestAttemptFor, isLineEnrolled, getAutoPayConfig,
   type AutoDebitAttempt,
@@ -207,6 +208,7 @@ export default function BuyerCredit() {
             <TabsTrigger value="grow">Grow Limit</TabsTrigger>
             <TabsTrigger value="request">Request Limit</TabsTrigger>
             <TabsTrigger value="autopay">AutoPay</TabsTrigger>
+            <TabsTrigger value="reminders">Reminders</TabsTrigger>
             <TabsTrigger value="audit">Audit Trail</TabsTrigger>
           </TabsList>
 
@@ -586,6 +588,11 @@ export default function BuyerCredit() {
           <TabsContent value="autopay" className="mt-4 space-y-4">
             <AutoRepaymentPanel lines={profile.creditLines} schedules={schedules} />
           </TabsContent>
+
+          <TabsContent value="reminders" className="mt-4 space-y-4">
+            <DueRemindersPanel lines={profile.creditLines} />
+          </TabsContent>
+
 
 
           <TabsContent value="audit" className="mt-4 space-y-4">
