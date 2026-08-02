@@ -85,12 +85,15 @@ export function DueRemindersPanel({ lines }: { lines: CreditLine[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid md:grid-cols-4 gap-3">
+      <div className="grid md:grid-cols-6 gap-3">
         <StatCard icon={<Bell className="h-4 w-4" />} label="Total sent" value={stats.total} tone="muted" />
         <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="Overdue" value={stats.overdue} tone="destructive" />
         <StatCard icon={<CalendarClock className="h-4 w-4" />} label="Due today" value={stats.dueToday} tone="warning" />
         <StatCard icon={<Clock className="h-4 w-4" />} label="Upcoming" value={stats.upcoming} tone="info" />
+        <StatCard icon={<CheckCheck className="h-4 w-4" />} label="Deliveries sent" value={stats.sent} tone="muted" />
+        <StatCard icon={<ShieldCheck className="h-4 w-4" />} label="Deduped windows" value={stats.dedupedKeys} tone="info" />
       </div>
+
 
       <Tabs defaultValue="log">
         <TabsList>
