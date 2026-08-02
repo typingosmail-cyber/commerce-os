@@ -20,7 +20,10 @@ import {
   ArrowUpRight, Wallet, Calculator, Award, ChevronDown, ChevronRight, CalendarDays,
   TrendingDown, CheckCircle2, Trophy, AlertOctagon, BadgeCheck, UserCog, History, Download, ArrowDownRight,
   ShieldAlert, Ban, Snowflake, Activity, Fingerprint, Gauge, Scale, Zap, XCircle, Loader2, RefreshCw,
+  FileDown, FileSpreadsheet,
 } from "lucide-react";
+import { downloadScheduleCsv, downloadSchedulePdf } from "@/lib/schedule-export";
+
 import { toast } from "@/hooks/use-toast";
 import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
 import { AutoRepaymentPanel } from "@/components/buyer/AutoRepaymentPanel";
@@ -426,7 +429,38 @@ export default function BuyerCredit() {
                                   ) : (
                                     <Badge variant="outline" className="ml-1">Manual</Badge>
                                   )}
+                                  <div className="ml-auto flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 gap-1.5 text-xs"
+                                      onClick={() => {
+                                        downloadScheduleCsv(cl, schedule);
+                                        toast({ title: "CSV downloaded", description: `${schedule.length} installments for ${cl.orderRef}.` });
+                                      }}
+                                    >
+                                      <FileSpreadsheet className="h-3.5 w-3.5" /> CSV
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 gap-1.5 text-xs"
+                                      onClick={() => {
+                                        const ok = downloadSchedulePdf(cl, schedule);
+                                        toast({
+                                          title: ok ? "Preparing PDF" : "Popup blocked",
+                                          description: ok
+                                            ? "Choose \"Save as PDF\" in the print dialog."
+                                            : "Allow popups for this site to export the PDF statement.",
+                                          variant: ok ? "default" : "destructive",
+                                        });
+                                      }}
+                                    >
+                                      <FileDown className="h-3.5 w-3.5" /> PDF
+                                    </Button>
+                                  </div>
                                 </div>
+
                                 <div className="rounded-md border bg-background overflow-hidden">
                                   <Table>
                                     <TableHeader>
