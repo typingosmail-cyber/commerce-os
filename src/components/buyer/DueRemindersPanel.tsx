@@ -149,11 +149,26 @@ export function DueRemindersPanel({ lines }: { lines: CreditLine[] }) {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
-                            {r.channels.map((c) => <ChannelIcon key={c} c={c} />)}
+                          <div className="flex gap-1.5 flex-wrap">
+                            {(r.deliveries ?? r.channels.map((c) => ({ channel: c, state: "sent" as const, attempts: 1, updatedAt: r.sentAt }))).map((d: ChannelDelivery) => (
+                              <span
+                                key={d.channel}
+                                title={`${CHANNEL_LABEL[d.channel]} · ${DELIVERY_LABEL[d.state]}${d.detail ? ` — ${d.detail}` : ""}`}
+                                className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] ${
+                                  d.state === "failed" ? "border-destructive/40 text-destructive"
+                                  : d.state === "sent" ? "border-border text-muted-foreground"
+                                  : "border-dashed text-muted-foreground"
+                                }`}
+                              >
+                                <ChannelIcon c={d.channel} />
+                                {DELIVERY_LABEL[d.state]}
+                              </span>
+                            ))}
                           </div>
                         </TableCell>
+                        <TableCell className="text-[10px] text-muted-foreground font-mono max-w-[140px] truncate" title={r.dedupeKey}>{r.dedupeKey ?? "—"}</TableCell>
                         <TableCell className="text-xs text-muted-foreground max-w-xs truncate" title={r.message}>{r.message}</TableCell>
+
                         <TableCell className="text-right">
                           {r.acknowledged
                             ? <Badge variant="outline" className="text-[10px]">Acked</Badge>
