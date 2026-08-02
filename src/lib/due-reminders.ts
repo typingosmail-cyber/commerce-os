@@ -19,8 +19,20 @@ export interface ReminderConfig {
   quietEndHour: number;   // 0-23
 }
 
+export type DeliveryState = "queued" | "sent" | "failed" | "suppressed";
+
+export interface ChannelDelivery {
+  channel: ReminderChannel;
+  state: DeliveryState;
+  attempts: number;
+  updatedAt: string;
+  detail?: string;
+}
+
 export interface ReminderRecord {
   id: string;
+  /** Stable per-installment+kind+cadence-bucket dedupe key. */
+  dedupeKey: string;
   creditLineId: string;
   orderRef: string;
   supplierName: string;
@@ -29,15 +41,30 @@ export interface ReminderRecord {
   amount: number;
   kind: ReminderKind;
   channels: ReminderChannel[];
+  deliveries: ChannelDelivery[];
   sentAt: string;
   daysUntilDue: number;
   acknowledged: boolean;
   message: string;
 }
 
+/** Per-installment delivery ledger entry, keyed by dedupeKey. */
+export interface DedupeEntry {
+  key: string;
+  creditLineId: string;
+  installmentNo: number;
+  kind: ReminderKind;
+  bucket: string;
+  firstSentAt: string;
+  lastSentAt: string;
+  count: number;
+  channels: ReminderChannel[];
+}
+
 const STORE = {
   config: "vyapar_due_reminder_config_v1",
   log: "vyapar_due_reminder_log_v1",
+  ledger: "vyapar_due_reminder_ledger_v1",
 };
 
 const DEFAULT_CONFIG: ReminderConfig = {
@@ -56,6 +83,7 @@ function load<T>(k: string, f: T): T {
 }
 function save<T>(k: string, v: T) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* noop */ } }
 function uid(p: string) { return `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`; }
+
 const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
 export function getReminderConfig(): ReminderConfig {
@@ -68,7 +96,8 @@ export function setReminderConfig(patch: Partial<ReminderConfig>): ReminderConfi
 }
 
 export function listReminders(): ReminderRecord[] { return load<ReminderRecord[]>(STORE.log, []); }
-export function clearReminders() { save(STORE.log, []); }
+export function listLedger(): DedupeEntry[] { return load<DedupeEntry[]>(STORE.ledger, []); }
+export function clearReminders() { save(STORE.log, []); save(STORE.ledger, []); }
 export function acknowledgeReminder(id: string) {
   const list = listReminders();
   const r = list.find((x) => x.id === id);
@@ -108,9 +137,26 @@ function hourBucket(d: Date, hours: number) {
 }
 function dayBucket(d: Date) { return d.toISOString().slice(0, 10); }
 
+/** Cadence bucket for an installment reminder: per-day, or per overdueRepeatHours window. */
+function bucketFor(kind: ReminderKind, cfg: ReminderConfig, now: Date) {
+  return kind === "overdue" ? hourBucket(now, cfg.overdueRepeatHours) : dayBucket(now);
+}
+
+/** Simulated per-channel delivery outcome (deterministic-ish mock). */
+function deliver(channel: ReminderChannel, cfg: ReminderConfig, at: Date): ChannelDelivery {
+  const base: ChannelDelivery = { channel, state: "sent", attempts: 1, updatedAt: at.toISOString() };
+  if (channel === "email" && !cfg.contactEmail.trim()) return { ...base, state: "failed", detail: "No contact email on file" };
+  if (channel === "sms" && !cfg.contactSms.trim()) return { ...base, state: "failed", detail: "No contact mobile on file" };
+  return { ...base, detail: channel === "inapp" ? "Delivered to notification centre" : `Delivered to ${channel === "email" ? cfg.contactEmail : cfg.contactSms}` };
+}
+
 /**
  * Scan all active credit lines, generate reminders that haven't already
- * been sent for the current bucket, persist them, and return the new records.
+ * been sent for the current cadence bucket, persist them, and return the new records.
+ *
+ * Dedupe is enforced by a persistent ledger keyed by
+ * `creditLineId#installmentNo#kind#bucket`, so a given installment can only
+ * trigger one reminder per cadence window even across reloads or repeated scans.
  */
 export function scanReminders(
   lines: CreditLine[],
@@ -119,7 +165,8 @@ export function scanReminders(
   const cfg = getReminderConfig();
   if (!cfg.enabled) return [];
   const existing = listReminders();
-  const seen = new Set(existing.map((r) => `${r.creditLineId}#${r.installmentNo}#${r.kind}#${r.dueDate}#${r.sentAt.slice(0, 13)}`));
+  const ledger = listLedger();
+  const byKey = new Map(ledger.map((e) => [e.key, e]));
   const emitted: ReminderRecord[] = [];
 
   for (const line of lines) {
@@ -129,46 +176,76 @@ export function scanReminders(
       if (inst.status === "paid") continue;
 
       let kind: ReminderKind | null = null;
-      let bucket: string = dayBucket(now);
-      if (inst.daysUntilDue < 0) {
-        kind = "overdue";
-        bucket = hourBucket(now, cfg.overdueRepeatHours);
-      } else if (inst.daysUntilDue === 0) {
-        kind = "due_today";
-      } else if (cfg.upcomingDaysBefore.includes(inst.daysUntilDue)) {
-        kind = "upcoming";
-      }
+      if (inst.daysUntilDue < 0) kind = "overdue";
+      else if (inst.daysUntilDue === 0) kind = "due_today";
+      else if (cfg.upcomingDaysBefore.includes(inst.daysUntilDue)) kind = "upcoming";
       if (!kind) continue;
 
-      const dedupe = keyFor(line.id, inst.installmentNo, kind, bucket);
-      if (existing.some((r) => keyFor(r.creditLineId, r.installmentNo, r.kind, kind === "overdue" ? hourBucket(new Date(r.sentAt), cfg.overdueRepeatHours) : dayBucket(new Date(r.sentAt))) === dedupe)) continue;
+      const bucket = bucketFor(kind, cfg, now);
+      const dedupeKey = keyFor(line.id, inst.installmentNo, kind, bucket);
+      if (byKey.has(dedupeKey)) continue; // already delivered in this cadence window
 
       const channels = activeChannels(cfg, kind, now);
       if (channels.length === 0) continue;
 
+      const amount = inst.remainingAmount || inst.total;
       const rec: ReminderRecord = {
         id: uid("rem"),
+        dedupeKey,
         creditLineId: line.id,
         orderRef: line.orderRef,
         supplierName: line.supplierName,
         installmentNo: inst.installmentNo,
         dueDate: inst.dueDate,
-        amount: inst.remainingAmount || inst.total,
+        amount,
         kind,
         channels,
+        deliveries: channels.map((c) => deliver(c, cfg, now)),
         sentAt: now.toISOString(),
         daysUntilDue: inst.daysUntilDue,
         acknowledged: false,
-        message: messageFor(kind, line.orderRef, inst.remainingAmount || inst.total, inst.dueDate, inst.daysUntilDue),
+        message: messageFor(kind, line.orderRef, amount, inst.dueDate, inst.daysUntilDue),
       };
       emitted.push(rec);
-      void seen.add(dedupe);
+      byKey.set(dedupeKey, {
+        key: dedupeKey,
+        creditLineId: line.id,
+        installmentNo: inst.installmentNo,
+        kind,
+        bucket,
+        firstSentAt: rec.sentAt,
+        lastSentAt: rec.sentAt,
+        count: 1,
+        channels,
+      });
     }
   }
 
-  if (emitted.length) save(STORE.log, [...emitted, ...existing].slice(0, 300));
+  if (emitted.length) {
+    save(STORE.log, [...emitted, ...existing].slice(0, 300));
+    // Keep the ledger bounded; newest buckets first.
+    save(STORE.ledger, [...byKey.values()].sort((a, b) => b.lastSentAt.localeCompare(a.lastSentAt)).slice(0, 600));
+  }
   return emitted;
 }
+
+/** Delivery state for a specific installment + kind in the current cadence window. */
+export function deliveryStateFor(
+  creditLineId: string,
+  installmentNo: number,
+  kind: ReminderKind,
+  now: Date = new Date(),
+): { suppressed: boolean; entry?: DedupeEntry; nextEligibleAt?: string } {
+  const cfg = getReminderConfig();
+  const key = keyFor(creditLineId, installmentNo, kind, bucketFor(kind, cfg, now));
+  const entry = listLedger().find((e) => e.key === key);
+  if (!entry) return { suppressed: false };
+  const next = new Date(now);
+  if (kind === "overdue") next.setHours(next.getHours() + cfg.overdueRepeatHours);
+  else { next.setDate(next.getDate() + 1); next.setHours(0, 0, 0, 0); }
+  return { suppressed: true, entry, nextEligibleAt: next.toISOString() };
+}
+
 
 export const KIND_LABEL: Record<ReminderKind, string> = {
   upcoming: "Upcoming",
@@ -188,13 +265,25 @@ export const CHANNEL_LABEL: Record<ReminderChannel, string> = {
   inapp: "In-app",
 };
 
+export const DELIVERY_LABEL: Record<DeliveryState, string> = {
+  queued: "Queued",
+  sent: "Sent",
+  failed: "Failed",
+  suppressed: "Suppressed",
+};
+
 /** Convenience for a status summary card. */
 export function reminderStats(list: ReminderRecord[] = listReminders()) {
+  const deliveries = list.flatMap((r) => r.deliveries ?? []);
   return {
     total: list.length,
     overdue: list.filter((r) => r.kind === "overdue").length,
     dueToday: list.filter((r) => r.kind === "due_today").length,
     upcoming: list.filter((r) => r.kind === "upcoming").length,
     unacked: list.filter((r) => !r.acknowledged).length,
+    sent: deliveries.filter((d) => d.state === "sent").length,
+    failed: deliveries.filter((d) => d.state === "failed").length,
+    dedupedKeys: listLedger().length,
+
   };
 }

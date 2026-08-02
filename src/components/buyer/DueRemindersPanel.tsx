@@ -8,15 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bell, Mail, MessageSquare, Smartphone, PlayCircle, CheckCheck, Clock, AlertTriangle, CalendarClock, Trash2 } from "lucide-react";
+import { Bell, Mail, MessageSquare, Smartphone, PlayCircle, CheckCheck, Clock, AlertTriangle, CalendarClock, Trash2, ShieldCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useNotifications } from "@/lib/notifications";
 import {
   getReminderConfig, setReminderConfig, listReminders, scanReminders, acknowledgeReminder,
-  acknowledgeAll, clearReminders, reminderStats, KIND_LABEL, KIND_TONE, CHANNEL_LABEL,
-  type ReminderConfig, type ReminderRecord,
+  acknowledgeAll, clearReminders, reminderStats, KIND_LABEL, KIND_TONE, CHANNEL_LABEL, DELIVERY_LABEL,
+  type ReminderConfig, type ReminderRecord, type ChannelDelivery,
 } from "@/lib/due-reminders";
 import type { CreditLine } from "@/lib/bnpl";
+
 
 const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 const timeAgo = (iso: string) => {
@@ -84,12 +85,15 @@ export function DueRemindersPanel({ lines }: { lines: CreditLine[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid md:grid-cols-4 gap-3">
+      <div className="grid md:grid-cols-6 gap-3">
         <StatCard icon={<Bell className="h-4 w-4" />} label="Total sent" value={stats.total} tone="muted" />
         <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="Overdue" value={stats.overdue} tone="destructive" />
         <StatCard icon={<CalendarClock className="h-4 w-4" />} label="Due today" value={stats.dueToday} tone="warning" />
         <StatCard icon={<Clock className="h-4 w-4" />} label="Upcoming" value={stats.upcoming} tone="info" />
+        <StatCard icon={<CheckCheck className="h-4 w-4" />} label="Deliveries sent" value={stats.sent} tone="muted" />
+        <StatCard icon={<ShieldCheck className="h-4 w-4" />} label="Deduped windows" value={stats.dedupedKeys} tone="info" />
       </div>
+
 
       <Tabs defaultValue="log">
         <TabsList>
@@ -130,8 +134,10 @@ export function DueRemindersPanel({ lines }: { lines: CreditLine[] }) {
                       <TableHead>Installment</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Kind</TableHead>
-                      <TableHead>Channels</TableHead>
+                      <TableHead>Delivery</TableHead>
+                      <TableHead>Dedupe key</TableHead>
                       <TableHead>Message</TableHead>
+
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -148,11 +154,26 @@ export function DueRemindersPanel({ lines }: { lines: CreditLine[] }) {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
-                            {r.channels.map((c) => <ChannelIcon key={c} c={c} />)}
+                          <div className="flex gap-1.5 flex-wrap">
+                            {(r.deliveries ?? r.channels.map((c) => ({ channel: c, state: "sent" as const, attempts: 1, updatedAt: r.sentAt }))).map((d: ChannelDelivery) => (
+                              <span
+                                key={d.channel}
+                                title={`${CHANNEL_LABEL[d.channel]} · ${DELIVERY_LABEL[d.state]}${d.detail ? ` — ${d.detail}` : ""}`}
+                                className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] ${
+                                  d.state === "failed" ? "border-destructive/40 text-destructive"
+                                  : d.state === "sent" ? "border-border text-muted-foreground"
+                                  : "border-dashed text-muted-foreground"
+                                }`}
+                              >
+                                <ChannelIcon c={d.channel} />
+                                {DELIVERY_LABEL[d.state]}
+                              </span>
+                            ))}
                           </div>
                         </TableCell>
+                        <TableCell className="text-[10px] text-muted-foreground font-mono max-w-[140px] truncate" title={r.dedupeKey}>{r.dedupeKey ?? "—"}</TableCell>
                         <TableCell className="text-xs text-muted-foreground max-w-xs truncate" title={r.message}>{r.message}</TableCell>
+
                         <TableCell className="text-right">
                           {r.acknowledged
                             ? <Badge variant="outline" className="text-[10px]">Acked</Badge>
