@@ -131,8 +131,10 @@ export function DueRemindersPanel({ lines }: { lines: CreditLine[] }) {
                       <TableHead>Installment</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Kind</TableHead>
-                      <TableHead>Channels</TableHead>
+                      <TableHead>Delivery</TableHead>
+                      <TableHead>Dedupe key</TableHead>
                       <TableHead>Message</TableHead>
+
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
