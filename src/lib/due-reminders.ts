@@ -265,13 +265,25 @@ export const CHANNEL_LABEL: Record<ReminderChannel, string> = {
   inapp: "In-app",
 };
 
+export const DELIVERY_LABEL: Record<DeliveryState, string> = {
+  queued: "Queued",
+  sent: "Sent",
+  failed: "Failed",
+  suppressed: "Suppressed",
+};
+
 /** Convenience for a status summary card. */
 export function reminderStats(list: ReminderRecord[] = listReminders()) {
+  const deliveries = list.flatMap((r) => r.deliveries ?? []);
   return {
     total: list.length,
     overdue: list.filter((r) => r.kind === "overdue").length,
     dueToday: list.filter((r) => r.kind === "due_today").length,
     upcoming: list.filter((r) => r.kind === "upcoming").length,
     unacked: list.filter((r) => !r.acknowledged).length,
+    sent: deliveries.filter((d) => d.state === "sent").length,
+    failed: deliveries.filter((d) => d.state === "failed").length,
+    dedupedKeys: listLedger().length,
+
   };
 }
