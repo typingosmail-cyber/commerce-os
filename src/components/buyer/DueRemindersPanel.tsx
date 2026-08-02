@@ -13,10 +13,11 @@ import { toast } from "@/hooks/use-toast";
 import { useNotifications } from "@/lib/notifications";
 import {
   getReminderConfig, setReminderConfig, listReminders, scanReminders, acknowledgeReminder,
-  acknowledgeAll, clearReminders, reminderStats, KIND_LABEL, KIND_TONE, CHANNEL_LABEL,
-  type ReminderConfig, type ReminderRecord,
+  acknowledgeAll, clearReminders, reminderStats, KIND_LABEL, KIND_TONE, CHANNEL_LABEL, DELIVERY_LABEL,
+  type ReminderConfig, type ReminderRecord, type ChannelDelivery,
 } from "@/lib/due-reminders";
 import type { CreditLine } from "@/lib/bnpl";
+
 
 const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 const timeAgo = (iso: string) => {
