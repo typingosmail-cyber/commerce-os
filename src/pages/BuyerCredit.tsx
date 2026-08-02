@@ -20,7 +20,10 @@ import {
   ArrowUpRight, Wallet, Calculator, Award, ChevronDown, ChevronRight, CalendarDays,
   TrendingDown, CheckCircle2, Trophy, AlertOctagon, BadgeCheck, UserCog, History, Download, ArrowDownRight,
   ShieldAlert, Ban, Snowflake, Activity, Fingerprint, Gauge, Scale, Zap, XCircle, Loader2, RefreshCw,
+  FileDown, FileSpreadsheet,
 } from "lucide-react";
+import { downloadScheduleCsv, downloadSchedulePdf } from "@/lib/schedule-export";
+
 import { toast } from "@/hooks/use-toast";
 import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
 import { AutoRepaymentPanel } from "@/components/buyer/AutoRepaymentPanel";
