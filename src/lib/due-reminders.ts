@@ -19,8 +19,20 @@ export interface ReminderConfig {
   quietEndHour: number;   // 0-23
 }
 
+export type DeliveryState = "queued" | "sent" | "failed" | "suppressed";
+
+export interface ChannelDelivery {
+  channel: ReminderChannel;
+  state: DeliveryState;
+  attempts: number;
+  updatedAt: string;
+  detail?: string;
+}
+
 export interface ReminderRecord {
   id: string;
+  /** Stable per-installment+kind+cadence-bucket dedupe key. */
+  dedupeKey: string;
   creditLineId: string;
   orderRef: string;
   supplierName: string;
@@ -29,15 +41,30 @@ export interface ReminderRecord {
   amount: number;
   kind: ReminderKind;
   channels: ReminderChannel[];
+  deliveries: ChannelDelivery[];
   sentAt: string;
   daysUntilDue: number;
   acknowledged: boolean;
   message: string;
 }
 
+/** Per-installment delivery ledger entry, keyed by dedupeKey. */
+export interface DedupeEntry {
+  key: string;
+  creditLineId: string;
+  installmentNo: number;
+  kind: ReminderKind;
+  bucket: string;
+  firstSentAt: string;
+  lastSentAt: string;
+  count: number;
+  channels: ReminderChannel[];
+}
+
 const STORE = {
   config: "vyapar_due_reminder_config_v1",
   log: "vyapar_due_reminder_log_v1",
+  ledger: "vyapar_due_reminder_ledger_v1",
 };
 
 const DEFAULT_CONFIG: ReminderConfig = {
@@ -56,6 +83,7 @@ function load<T>(k: string, f: T): T {
 }
 function save<T>(k: string, v: T) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* noop */ } }
 function uid(p: string) { return `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`; }
+
 const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
 export function getReminderConfig(): ReminderConfig {
