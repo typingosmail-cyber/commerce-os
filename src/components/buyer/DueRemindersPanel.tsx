@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bell, Mail, MessageSquare, Smartphone, PlayCircle, CheckCheck, Clock, AlertTriangle, CalendarClock, Trash2 } from "lucide-react";
+import { Bell, Mail, MessageSquare, Smartphone, PlayCircle, CheckCheck, Clock, AlertTriangle, CalendarClock, Trash2, ShieldCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useNotifications } from "@/lib/notifications";
 import {
