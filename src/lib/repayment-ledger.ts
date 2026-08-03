@@ -9,6 +9,7 @@
 import {
   addPartialRepayment,
   generateSchedule,
+  getPartialPaidForLine,
   getPartialRepayments,
   type CreditLine,
   type ScheduleInstallment,
@@ -304,6 +305,7 @@ export interface LineBalance {
   orderRef: string;
   supplierName: string;
   billed: number;              // total scheduled (principal + interest + fee)
+  openingSettled: number;      // amount already settled before the ledger went live
   postedTotal: number;         // total cash posted
   principalRecovered: number;
   interestRecovered: number;
@@ -319,15 +321,20 @@ export function lineBalance(line: CreditLine): LineBalance {
   const scheduleOutstanding = schedule.reduce((s, i) => s + i.remainingAmount, 0);
   const batches = listBatches(line.id);
   const postedTotal = batches.reduce((s, b) => s + b.amount, 0);
+  // Seeded lines carry historical repayments that predate the ledger; treat
+  // them as an opening settled balance so variance shows only real drift.
+  const settledOnSchedule = schedule.reduce((s, i) => s + i.paidAmount, 0);
+  const openingSettled = Math.max(0, settledOnSchedule - getPartialPaidForLine(line.id));
   const principalRecovered = batches.reduce((s, b) => s + b.totals.principal, 0);
   const interestRecovered = batches.reduce((s, b) => s + b.totals.interest, 0);
   const feeRecovered = batches.reduce((s, b) => s + b.totals.fee, 0);
-  const ledgerOutstanding = Math.max(0, r0(billed - postedTotal));
+  const ledgerOutstanding = Math.max(0, r0(billed - openingSettled - postedTotal));
   return {
     creditLineId: line.id,
     orderRef: line.orderRef,
     supplierName: line.supplierName,
     billed: r0(billed),
+    openingSettled: r0(openingSettled),
     postedTotal: r0(postedTotal),
     principalRecovered: r0(principalRecovered),
     interestRecovered: r0(interestRecovered),
