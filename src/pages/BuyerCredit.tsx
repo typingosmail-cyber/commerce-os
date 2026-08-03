@@ -28,6 +28,8 @@ import { toast } from "@/hooks/use-toast";
 import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
 import { AutoRepaymentPanel } from "@/components/buyer/AutoRepaymentPanel";
 import { DueRemindersPanel } from "@/components/buyer/DueRemindersPanel";
+import { RepaymentLedgerPanel } from "@/components/buyer/RepaymentLedgerPanel";
+import { postRepayment, postUnpostedDebits } from "@/lib/repayment-ledger";
 import {
   runAutopayForLines, latestAttemptFor, isLineEnrolled, getAutoPayConfig,
   type AutoDebitAttempt,
@@ -70,12 +72,20 @@ export default function BuyerCredit() {
   useEffect(() => {
     const results = runAutopayForLines(profile.creditLines, schedules);
     const acted = results.filter((r) => r.status === "debited" || r.status === "failed" || r.status === "retry_scheduled");
-    if (acted.length > 0) setAutopayTick((n) => n + 1);
+    // Post every successful gateway collection into the repayment ledger so
+    // outstanding balances stay reconciled with what was actually debited.
+    const posted = postUnpostedDebits(profile.creditLines);
+    if (acted.length > 0 || posted.length > 0) {
+      setAutopayTick((n) => n + 1);
+      if (posted.length > 0) setRepayTick((n) => n + 1);
+    }
   }, [profile, schedules]);
 
   const triggerAutopay = () => {
     const results = runAutopayForLines(profile.creditLines, schedules);
+    const posted = postUnpostedDebits(profile.creditLines);
     setAutopayTick((n) => n + 1);
+    if (posted.length > 0) setRepayTick((n) => n + 1);
     const debited = results.filter((r) => r.status === "debited").length;
     const failed = results.filter((r) => r.status === "failed" || r.status === "retry_scheduled").length;
     const pending = results.filter((r) => r.status === "skipped_not_due").length;
@@ -212,6 +222,7 @@ export default function BuyerCredit() {
             <TabsTrigger value="request">Request Limit</TabsTrigger>
             <TabsTrigger value="autopay">AutoPay</TabsTrigger>
             <TabsTrigger value="reminders">Reminders</TabsTrigger>
+            <TabsTrigger value="ledger">Ledger</TabsTrigger>
             <TabsTrigger value="audit">Audit Trail</TabsTrigger>
           </TabsList>
 
@@ -627,6 +638,15 @@ export default function BuyerCredit() {
             <DueRemindersPanel lines={profile.creditLines} />
           </TabsContent>
 
+          {/* Repayment posting & reconciliation */}
+          <TabsContent value="ledger" className="mt-4 space-y-4">
+            <RepaymentLedgerPanel
+              lines={profile.creditLines}
+              refreshKey={repayTick + autopayTick}
+              onPosted={() => setRepayTick((n) => n + 1)}
+            />
+          </TabsContent>
+
 
 
           <TabsContent value="audit" className="mt-4 space-y-4">
@@ -687,12 +707,15 @@ function RepayDialog({
 
   const submit = () => {
     if (invalid) return;
-    addPartialRepayment(line.id, amount, `Repayment towards ${line.orderRef}`);
+    const batch = postRepayment({
+      line,
+      amount,
+      source: "manual",
+      note: `Repayment towards ${line.orderRef}`,
+    });
     toast({
-      title: `${fmt(amount)} repayment recorded`,
-      description: amount >= outstanding
-        ? `${line.orderRef} fully repaid`
-        : `New outstanding: ${fmt(outstanding - amount)}`,
+      title: `${fmt(amount)} repayment posted`,
+      description: `${batch.allocations.length} installment(s) updated · principal ${fmt(batch.totals.principal)} · interest ${fmt(batch.totals.interest)} · fees ${fmt(batch.totals.fee)} · outstanding ${fmt(batch.outstandingAfter)}`,
     });
     onPaid();
     onClose();
