@@ -77,11 +77,12 @@ export default function CompanyProfile() {
         <Card className="overflow-hidden">
           <div className="h-28 bg-gradient-to-r from-primary via-primary/90 to-secondary/60" />
           <CardContent className="relative p-4 pt-0">
-            <div className="-mt-10 flex flex-wrap items-end gap-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-xl border-4 border-card bg-primary font-display text-xl font-bold text-primary-foreground">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="-mt-10 flex h-20 w-20 items-center justify-center rounded-xl border-4 border-card bg-primary font-display text-xl font-bold text-primary-foreground">
                 {initials(company.name)}
               </div>
-              <div className="min-w-0 flex-1 pb-1">
+              <div className="min-w-0 flex-1 pt-3">
+
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="font-display text-xl font-bold text-foreground">{company.name}</h1>
                   {company.verified && (
