@@ -32,6 +32,8 @@ import TradeOSConsole from "./pages/TradeOSConsole";
 import NotFound from "./pages/NotFound";
 import SolutionsHub from "./pages/SolutionsHub";
 import DynamicPage from "./pages/DynamicPage";
+import SocialFeed from "./pages/SocialFeed";
+import CompanyProfile from "./pages/CompanyProfile";
 
 const queryClient = new QueryClient();
 
