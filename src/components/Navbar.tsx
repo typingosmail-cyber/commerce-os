@@ -8,7 +8,7 @@ import { AuthModal } from "@/components/AuthModal";
 import {
   Search, ShoppingCart, Menu, X, MessageCircle,
   Grid3X3, Building2, ChevronDown, Heart, Crown, Shield, Brain,
-  LogOut, IndianRupee, ArrowRightLeft, Wallet, Truck, BarChart3, CreditCard, ShieldAlert, ShieldCheck,
+  LogOut, IndianRupee, ArrowRightLeft, Wallet, Truck, BarChart3, CreditCard, ShieldAlert, ShieldCheck, Users,
 } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const NAV_LINKS = [
+  { label: "Feed", path: "/feed", icon: Users },
   { label: "Solutions", path: "/solutions", icon: Grid3X3 },
   { label: "Categories", path: "/categories", icon: Grid3X3 },
   { label: "Trade OS", path: "/trade-os", icon: Brain },
