@@ -49,7 +49,10 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/categories" element={<CategoryBrowse />} />
+            <Route path="/feed" element={<SocialFeed />} />
+            <Route path="/network/:id" element={<CompanyProfile />} />
             <Route path="/product/:id" element={<ProductDetail />} />
+
             <Route path="/compare" element={<CompareProducts />} />
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/pricing" element={<Pricing />} />
