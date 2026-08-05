@@ -69,7 +69,7 @@ export function getCounterpartyMatches(rfqs: RFQ[] = MOCK_RFQS): CounterpartyMat
     // 1. suppliers who already responded to the RFQ
     for (const r of rfq.responses as RFQResponse[]) {
       const sup = MOCK_SUPPLIERS.find((s) => s.id === r.supplierId || s.name === r.supplierName);
-      const trust = sup?.trustScore?.score ?? r.supplierScore ?? 700;
+      const trust = sup?.trustScore?.overall ?? r.supplierScore ?? 700;
       const base = {
         id: `match-${rfq.id}-${r.supplierId}`,
         source: "rfq" as const,
@@ -103,7 +103,7 @@ export function getCounterpartyMatches(rfqs: RFQ[] = MOCK_RFQS): CounterpartyMat
       const productHit = s.products.some((p) => words.some((w) => p.toLowerCase().includes(w)));
       const categoryHit = s.industry === rfq.category || s.subIndustry === rfq.category;
       if (!productHit && !categoryHit) continue;
-      const trust = s.trustScore?.score ?? 700;
+      const trust = s.trustScore?.overall ?? 700;
       const base = {
         id: `match-${rfq.id}-${s.id}`,
         source: "rfq" as const,
