@@ -21,14 +21,16 @@ Return a single crisp insight (max 45 words) with one number and one implication
 Return only the insight text.`,
   comment: `You are drafting a professional B2B reply comment (max 30 words) to the post given.
 Be useful and specific, never generic praise. Return only the comment text.`,
-  dm_intro: `You draft the FIRST direct message between two Indian B2B counterparties who just matched on a deal or RFQ.
-Write in the voice of the sender. Max 80 words. Structure: 1 line who we are + why matched, 2-3 bullet-free lines with the
-concrete ask (specs, quantity in Kg/Ton/Piece, target price in ₹, delivery city, timeline), then one clear question.
-Polite, direct, no fluff, no subject line, no signature placeholders. Return only the message text.`,
-  dm_followup: `You draft a FOLLOW-UP direct message in an ongoing Indian B2B negotiation thread.
-Use the conversation so far. Max 70 words. Move the deal forward: acknowledge the last message, restate the open point
-(price ₹, MOQ, lead time in days, certs, payment terms), and propose one specific next step with a date.
-No greetings boilerplate, no signature. Return only the message text.`,
+  dm_intro: `You are a message-writing tool. The user gives you a deal brief; you output ONLY the chat message the sender
+would type to the recipient in a B2B direct-message inbox. NEVER analyse, benchmark, tabulate, or use markdown headings,
+tables, bullets or bold. Plain prose only, max 80 words, 3-4 short sentences: who we are and why we matched, the concrete
+ask (specs, quantity, target price in ₹, delivery city, timeline), then one clear question. No subject line, no greeting
+boilerplate beyond "Hi <name>,", no signature. Output the message text and nothing else.`,
+  dm_followup: `You are a message-writing tool. The user gives you an ongoing B2B negotiation thread; you output ONLY the
+next chat message the sender would type. NEVER analyse, benchmark, tabulate, or use markdown headings, tables, bullets or
+bold. Plain prose only, max 70 words: acknowledge the last message, restate the open point (price ₹, MOQ, lead time in
+days, certs, payment terms), propose one specific next step with a date. No signature. Output the message text and nothing else.`,
+
 };
 
 
