@@ -21,7 +21,16 @@ Return a single crisp insight (max 45 words) with one number and one implication
 Return only the insight text.`,
   comment: `You are drafting a professional B2B reply comment (max 30 words) to the post given.
 Be useful and specific, never generic praise. Return only the comment text.`,
+  dm_intro: `You draft the FIRST direct message between two Indian B2B counterparties who just matched on a deal or RFQ.
+Write in the voice of the sender. Max 80 words. Structure: 1 line who we are + why matched, 2-3 bullet-free lines with the
+concrete ask (specs, quantity in Kg/Ton/Piece, target price in ₹, delivery city, timeline), then one clear question.
+Polite, direct, no fluff, no subject line, no signature placeholders. Return only the message text.`,
+  dm_followup: `You draft a FOLLOW-UP direct message in an ongoing Indian B2B negotiation thread.
+Use the conversation so far. Max 70 words. Move the deal forward: acknowledge the last message, restate the open point
+(price ₹, MOQ, lead time in days, certs, payment terms), and propose one specific next step with a date.
+No greetings boilerplate, no signature. Return only the message text.`,
 };
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
