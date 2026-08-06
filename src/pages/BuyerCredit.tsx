@@ -894,26 +894,13 @@ const EVENT_ICON_MAP = {
 
 function AuditTrailPanel({ entries, currentLimit }: { entries: CreditLimitAuditEntry[]; currentLimit: number }) {
   const [filter, setFilter] = useState<"all" | "positive" | "negative">("all");
+  const [exportOpen, setExportOpen] = useState(false);
   const summary = useMemo(() => summarizeAuditTrail(entries), [entries]);
 
   const filtered = entries.filter((e) =>
     filter === "all" ? true : filter === "positive" ? e.delta > 0 : e.delta < 0,
   );
 
-  const exportCsv = () => {
-    const header = ["Date", "Event", "Title", "Factor", "Before", "After", "Limit Before", "Limit After", "Delta", "Reference", "Actor"];
-    const rows = entries.map((e) => [
-      e.date, e.eventType, e.title, e.factor ?? "", e.factorBefore ?? "", e.factorAfter ?? "",
-      e.limitBefore, e.limitAfter, e.delta, e.reference ?? "", e.actor,
-    ]);
-    const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `credit-audit-trail.csv`; a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: "Audit trail exported", description: `${entries.length} events downloaded as CSV.` });
-  };
 
   return (
     <>
