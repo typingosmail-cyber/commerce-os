@@ -25,6 +25,7 @@ import {
 import { downloadScheduleCsv, downloadSchedulePdf } from "@/lib/schedule-export";
 
 import { toast } from "@/hooks/use-toast";
+import { FactorDeltaPanel } from "@/components/buyer/FactorDeltaPanel";
 import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
 import { AutoRepaymentPanel } from "@/components/buyer/AutoRepaymentPanel";
 import { DueRemindersPanel } from "@/components/buyer/DueRemindersPanel";
@@ -208,6 +209,7 @@ export default function BuyerCredit() {
         <Tabs defaultValue="overview">
           <TabsList>
             <TabsTrigger value="overview">Score Breakdown</TabsTrigger>
+            <TabsTrigger value="deltas">Factor Deltas</TabsTrigger>
             <TabsTrigger value="simulate">Quick Drawdown</TabsTrigger>
             <TabsTrigger value="active">Active Lines</TabsTrigger>
             <TabsTrigger value="risk" className="relative">
@@ -266,6 +268,10 @@ export default function BuyerCredit() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="deltas" className="mt-4">
+            <FactorDeltaPanel profile={profile} trail={auditTrail} />
           </TabsContent>
 
           {/* Simulator */}

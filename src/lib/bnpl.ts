@@ -1187,3 +1187,121 @@ export const LIMIT_REQUEST_STATUS_META: Record<LimitRequestStatus, { label: stri
   rejected:     { label: "Rejected",     tone: "bg-destructive/15 text-destructive border-destructive/30" },
   more_info:    { label: "Needs Info",   tone: "bg-orange-500/15 text-orange-700 border-orange-500/30" },
 };
+
+// ============================================================
+// Factor-by-factor delta attribution
+// ============================================================
+
+export interface FactorDelta {
+  label: string;
+  weight: number;
+  before: number;       // 0-100 score at window start
+  after: number;        // 0-100 score now
+  scoreDelta: number;
+  weightedBefore: number; // contribution to composite (0-100 scale)
+  weightedAfter: number;
+  weightedDelta: number;
+  limitContribution: number; // INR attributed to this factor's movement
+  contributionPct: number;   // share of total limit movement (abs based)
+  events: CreditLimitAuditEntry[];
+  description: string;
+}
+
+export interface FactorDeltaReport {
+  windowDays: number;
+  fromDate: string;
+  toDate: string;
+  baselineLimit: number;
+  currentLimit: number;
+  limitDelta: number;
+  baselineComposite: number;
+  currentComposite: number;
+  compositeDelta: number;
+  factors: FactorDelta[];
+  /** Limit movement recorded in the audit trail that isn't tied to a factor (e.g. underwriter uplift). */
+  unattributedDelta: number;
+  eventCount: number;
+}
+
+const round5k = (n: number) => Math.round(n / 5000) * 5000;
+
+/**
+ * Compares each credit factor's score at the start of the window against today,
+ * and attributes the change in approved limit to each factor by re-running the
+ * limit model one factor at a time (cumulative marginal attribution).
+ */
+export function computeFactorDeltas(
+  profile: BuyerCreditProfile,
+  trail: CreditLimitAuditEntry[],
+  windowDays = 90,
+): FactorDeltaReport {
+  const today = new Date();
+  const cutoff = new Date(today.getTime() - windowDays * 86400000);
+  const inWindow = trail
+    .filter((e) => new Date(e.date) >= cutoff)
+    .sort((a, b) => a.date.localeCompare(b.date)); // chronological
+
+  const baseGmv = profile.totalGmv * 0.25;
+
+  // Baseline score per factor = factorBefore of its earliest in-window event.
+  const baselineFactors: CreditFactor[] = profile.factors.map((f) => {
+    const first = inWindow.find((e) => e.factor === f.label && e.factorBefore != null);
+    return { ...f, score: first?.factorBefore ?? f.score };
+  });
+
+  const baselineLimit = computeLimit(baselineFactors, baseGmv);
+  const currentLimit = computeLimit(profile.factors, baseGmv);
+
+  const weightedOf = (fs: CreditFactor[]) => fs.reduce((a, f) => a + (f.score * f.weight) / 100, 0);
+
+  // Cumulative marginal attribution — sums exactly to (currentLimit - baselineLimit).
+  const working = baselineFactors.map((f) => ({ ...f }));
+  let running = baselineLimit;
+  const contributions: number[] = [];
+  profile.factors.forEach((f, i) => {
+    working[i] = { ...working[i], score: f.score };
+    const next = computeLimit(working, baseGmv);
+    contributions.push(next - running);
+    running = next;
+  });
+
+  const totalAbs = contributions.reduce((a, c) => a + Math.abs(c), 0) || 1;
+
+  const factors: FactorDelta[] = profile.factors.map((f, i) => {
+    const before = baselineFactors[i].score;
+    const events = inWindow.filter((e) => e.factor === f.label).sort((a, b) => b.date.localeCompare(a.date));
+    return {
+      label: f.label,
+      weight: f.weight,
+      before,
+      after: f.score,
+      scoreDelta: f.score - before,
+      weightedBefore: +((before * f.weight) / 100).toFixed(1),
+      weightedAfter: +((f.score * f.weight) / 100).toFixed(1),
+      weightedDelta: +(((f.score - before) * f.weight) / 100).toFixed(1),
+      limitContribution: round5k(contributions[i]),
+      contributionPct: +((Math.abs(contributions[i]) / totalAbs) * 100).toFixed(1),
+      events,
+      description: f.description,
+    };
+  });
+
+  const unattributedDelta = inWindow
+    .filter((e) => !e.factor)
+    .reduce((a, e) => a + e.delta, 0);
+
+  return {
+    windowDays,
+    fromDate: cutoff.toISOString().slice(0, 10),
+    toDate: today.toISOString().slice(0, 10),
+    baselineLimit,
+    currentLimit,
+    limitDelta: currentLimit - baselineLimit,
+    baselineComposite: Math.round(weightedOf(baselineFactors)),
+    currentComposite: Math.round(weightedOf(profile.factors)),
+    compositeDelta: +(weightedOf(profile.factors) - weightedOf(baselineFactors)).toFixed(1),
+    factors,
+    unattributedDelta,
+    eventCount: inWindow.length,
+  };
+}
