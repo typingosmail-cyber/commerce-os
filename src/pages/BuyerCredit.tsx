@@ -1009,9 +1009,17 @@ function AuditTrailPanel({ entries, currentLimit }: { entries: CreditLimitAuditE
                 </button>
               ))}
             </div>
-            <Button size="sm" variant="outline" onClick={exportCsv}>
-              <Download className="h-3.5 w-3.5 mr-1.5" /> CSV
+            <Button size="sm" variant="outline" onClick={() => setExportOpen(true)}>
+              <Download className="h-3.5 w-3.5 mr-1.5" /> Export CSV
             </Button>
+            <AuditExportDialog
+              open={exportOpen}
+              onOpenChange={setExportOpen}
+              entries={entries}
+              filteredEntries={filtered}
+              activeFilter={filter}
+            />
+
           </div>
         </CardHeader>
         <CardContent>
