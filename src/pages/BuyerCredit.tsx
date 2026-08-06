@@ -26,6 +26,8 @@ import { downloadScheduleCsv, downloadSchedulePdf } from "@/lib/schedule-export"
 
 import { toast } from "@/hooks/use-toast";
 import { FactorDeltaPanel } from "@/components/buyer/FactorDeltaPanel";
+import { AuditExportDialog } from "@/components/buyer/AuditExportDialog";
+
 import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
 import { AutoRepaymentPanel } from "@/components/buyer/AutoRepaymentPanel";
 import { DueRemindersPanel } from "@/components/buyer/DueRemindersPanel";
@@ -894,26 +896,13 @@ const EVENT_ICON_MAP = {
 
 function AuditTrailPanel({ entries, currentLimit }: { entries: CreditLimitAuditEntry[]; currentLimit: number }) {
   const [filter, setFilter] = useState<"all" | "positive" | "negative">("all");
+  const [exportOpen, setExportOpen] = useState(false);
   const summary = useMemo(() => summarizeAuditTrail(entries), [entries]);
 
   const filtered = entries.filter((e) =>
     filter === "all" ? true : filter === "positive" ? e.delta > 0 : e.delta < 0,
   );
 
-  const exportCsv = () => {
-    const header = ["Date", "Event", "Title", "Factor", "Before", "After", "Limit Before", "Limit After", "Delta", "Reference", "Actor"];
-    const rows = entries.map((e) => [
-      e.date, e.eventType, e.title, e.factor ?? "", e.factorBefore ?? "", e.factorAfter ?? "",
-      e.limitBefore, e.limitAfter, e.delta, e.reference ?? "", e.actor,
-    ]);
-    const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `credit-audit-trail.csv`; a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: "Audit trail exported", description: `${entries.length} events downloaded as CSV.` });
-  };
 
   return (
     <>
@@ -1022,9 +1011,17 @@ function AuditTrailPanel({ entries, currentLimit }: { entries: CreditLimitAuditE
                 </button>
               ))}
             </div>
-            <Button size="sm" variant="outline" onClick={exportCsv}>
-              <Download className="h-3.5 w-3.5 mr-1.5" /> CSV
+            <Button size="sm" variant="outline" onClick={() => setExportOpen(true)}>
+              <Download className="h-3.5 w-3.5 mr-1.5" /> Export CSV
             </Button>
+            <AuditExportDialog
+              open={exportOpen}
+              onOpenChange={setExportOpen}
+              entries={entries}
+              filteredEntries={filtered}
+              activeFilter={filter}
+            />
+
           </div>
         </CardHeader>
         <CardContent>
