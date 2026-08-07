@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, Sparkles, Upload, Trash2, ArrowRight, Bot, ShieldCheck, Coins, Truck, FileText, Activity, Zap, Mic } from "lucide-react";
+import { Brain, Sparkles, Upload, Trash2, ArrowRight, Bot, ShieldCheck, Coins, Truck, FileText, Activity, Zap, Mic, Loader2 } from "lucide-react";
 import {
   loadDeals, deleteDeal, extractIntent, createDealFromSpec, upsertDeal,
   type TradeDeal, type RiskProfile, type DealSpec,
