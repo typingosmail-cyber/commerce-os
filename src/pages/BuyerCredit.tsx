@@ -1029,40 +1029,99 @@ function AuditTrailPanel({ entries, currentLimit }: { entries: CreditLimitAuditE
 
       {/* Timeline */}
       <Card>
-        <CardHeader className="flex-row items-start justify-between space-y-0">
-          <div>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <History className="h-4 w-4" /> Limit Change Timeline
-            </CardTitle>
-            <CardDescription>Every event that moved your approved credit limit, newest first.</CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex rounded-md border overflow-hidden">
-              {(["all", "positive", "negative"] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 text-xs capitalize transition-colors ${
-                    filter === f ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
+        <CardHeader className="space-y-3">
+          <div className="flex flex-row items-start justify-between gap-3 flex-wrap">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <History className="h-4 w-4" /> Limit Change Timeline
+              </CardTitle>
+              <CardDescription>Every event that moved your approved credit limit, newest first.</CardDescription>
             </div>
-            <Button size="sm" variant="outline" onClick={() => setExportOpen(true)}>
-              <Download className="h-3.5 w-3.5 mr-1.5" /> Export CSV
-            </Button>
-            <AuditExportDialog
-              open={exportOpen}
-              onOpenChange={setExportOpen}
-              entries={entries}
-              filteredEntries={filtered}
-              activeFilter={filter}
-            />
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setExportOpen(true)}>
+                <Download className="h-3.5 w-3.5 mr-1.5" /> Export CSV
+              </Button>
+              <AuditExportDialog
+                open={exportOpen}
+                onOpenChange={setExportOpen}
+                entries={entries}
+                filteredEntries={filtered}
+                activeFilter={activeFilterLabel}
+              />
+            </div>
+          </div>
 
+          {/* Filters */}
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] text-muted-foreground">Impact direction</Label>
+                <div className="flex rounded-md border overflow-hidden bg-background">
+                  {(["all", "positive", "negative", "neutral"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      className={`flex-1 px-2 py-1.5 text-[11px] capitalize transition-colors ${
+                        filter === f ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] text-muted-foreground">Factor type</Label>
+                <Select value={factorFilter} onValueChange={setFactorFilter}>
+                  <SelectTrigger className="h-9 bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All factors</SelectItem>
+                    {factorOptions.map((f) => (
+                      <SelectItem key={f} value={f}>{f}</SelectItem>
+                    ))}
+                    <SelectItem value="__none">No factor (discretionary)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] text-muted-foreground">Event type</Label>
+                <Select value={eventFilter} onValueChange={setEventFilter}>
+                  <SelectTrigger className="h-9 bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All event types</SelectItem>
+                    {eventOptions.map((t) => (
+                      <SelectItem key={t} value={t}>{prettyEventType(t)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] text-muted-foreground">Search</Label>
+                <Input
+                  className="h-9 bg-background"
+                  placeholder="Title, note or reference ID"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <Badge variant="secondary" className="text-[10px]">{filtered.length} of {entries.length} events</Badge>
+                <span className={`text-[11px] font-semibold ${filteredNet > 0 ? "text-success" : filteredNet < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                  Net in view: {filteredNet > 0 ? "+" : filteredNet < 0 ? "−" : ""}{fmt(Math.abs(filteredNet))}
+                </span>
+                {hasFilters && <span className="text-[11px] text-muted-foreground">· {activeFilterLabel}</span>}
+              </div>
+              {hasFilters && (
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={resetFilters}>
+                  <XCircle className="h-3.5 w-3.5 mr-1" /> Clear filters
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
+
         <CardContent>
           <div className="relative">
             <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
