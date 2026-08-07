@@ -489,6 +489,17 @@ export default function TradeOSConsole() {
                   <SpecRow label="Lead supplier" value={deal.candidates.find((c) => c.id === deal.finalSupplierId)?.name || "—"} />
                   <SpecRow label="ETA" value={deal.logistics ? `${deal.logistics.etaDays} days` : "—"} />
                   {deal.outcomeNote && <p className="text-xs text-muted-foreground italic pt-2">{deal.outcomeNote}</p>}
+                  <Separator className="my-2" />
+                  <Button size="sm" variant="outline" className="w-full" onClick={generateBrief} disabled={briefLoading}>
+                    {briefLoading
+                      ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Writing brief…</>
+                      : <><Sparkles className="w-3.5 h-3.5 mr-1" /> AI executive deal brief</>}
+                  </Button>
+                  {brief && (
+                    <div className="text-xs whitespace-pre-wrap leading-relaxed bg-background/70 border rounded p-3">
+                      {brief}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
