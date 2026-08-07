@@ -184,8 +184,13 @@ export default function TradeOS() {
                     className="mt-1.5"
                   />
                   <div className="flex flex-wrap gap-2 mt-2">
+                    <Button size="sm" onClick={parseWithAI} disabled={parsing}>
+                      {parsing
+                        ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Normalizing…</>
+                        : <><Sparkles className="w-3.5 h-3.5 mr-1" /> Parse with AI</>}
+                    </Button>
                     {SAMPLE_PROMPTS.map((p, i) => (
-                      <Button key={i} size="sm" variant="outline" onClick={() => setText(p)}>
+                      <Button key={i} size="sm" variant="outline" onClick={() => { setText(p); setAi(null); }}>
                         Sample {i + 1}
                       </Button>
                     ))}
@@ -206,7 +211,51 @@ export default function TradeOS() {
                       ))}
                     </div>
                   )}
+
+                  {ai && (
+                    <Card className="mt-3 border-secondary/40 bg-secondary/5">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Brain className="w-4 h-4 text-secondary" /> Understanding Agent — normalized spec
+                          {typeof ai.confidence === "number" && (
+                            <Badge variant="outline" className="text-xs ml-auto">
+                              {(ai.confidence * 100).toFixed(0)}% confidence
+                            </Badge>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-sm">
+                        {ai.product && <div><span className="text-muted-foreground">Product:</span> <span className="font-medium">{ai.product}</span></div>}
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(ai.specifications || {}).map(([k, v]) => (
+                            <Badge key={k} variant="outline" className="text-xs">{k}: {String(v)}</Badge>
+                          ))}
+                          {(ai.compliance_requirements || []).map((c) => (
+                            <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
+                          ))}
+                          {ai.category && <Badge className="text-xs">{ai.category}</Badge>}
+                        </div>
+                        {!!ai.clarifications?.length && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">Clarifications needed</div>
+                            <ul className="list-disc pl-5 space-y-0.5 text-xs">
+                              {ai.clarifications.map((c, i) => <li key={i}>{c}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {!!ai.optimizations?.length && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">Suggested optimizations</div>
+                            <ul className="list-disc pl-5 space-y-0.5 text-xs">
+                              {ai.optimizations.map((c, i) => <li key={i}>{c}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
+
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
