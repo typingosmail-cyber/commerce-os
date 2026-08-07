@@ -17,6 +17,7 @@ import {
   getDeal, upsertDeal, runNextStep, runFullPipeline, AGENT_PIPELINE, STAGE_ORDER,
   type TradeDeal, type DealStage,
 } from "@/lib/trade-os";
+import { generateText } from "@/lib/ai-agent";
 import { toast } from "sonner";
 
 const STAGE_ICONS: Record<string, React.ElementType> = {
