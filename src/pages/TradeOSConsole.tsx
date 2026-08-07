@@ -17,6 +17,7 @@ import {
   getDeal, upsertDeal, runNextStep, runFullPipeline, AGENT_PIPELINE, STAGE_ORDER,
   type TradeDeal, type DealStage,
 } from "@/lib/trade-os";
+import { generateText } from "@/lib/ai-agent";
 import { toast } from "sonner";
 
 const STAGE_ICONS: Record<string, React.ElementType> = {
@@ -36,6 +37,33 @@ export default function TradeOSConsole() {
   const { id } = useParams<{ id: string }>();
   const [deal, setDeal] = useState<TradeDeal | undefined>(() => (id ? getDeal(id) : undefined));
   const [autoRunning, setAutoRunning] = useState(false);
+  const [brief, setBrief] = useState("");
+  const [briefLoading, setBriefLoading] = useState(false);
+
+  const generateBrief = async () => {
+    if (!deal) return;
+    setBriefLoading(true);
+    try {
+      const lead = deal.candidates.find((c) => c.id === deal.finalSupplierId);
+      const payload = {
+        spec: deal.spec,
+        finalPrice: deal.finalPrice,
+        contract: deal.contract,
+        escrow: deal.escrow,
+        logistics: deal.logistics,
+        leadSupplier: lead,
+        topCandidates: deal.candidates.slice(0, 3),
+        simulations: deal.simulations,
+      };
+      const out = await generateText("deal_brief", JSON.stringify(payload));
+      setBrief(out);
+    } catch (e) {
+      toast.error((e as Error).message || "Brief generation failed.");
+    } finally {
+      setBriefLoading(false);
+    }
+  };
+
 
   useEffect(() => { if (id) setDeal(getDeal(id)); }, [id]);
 
@@ -461,6 +489,17 @@ export default function TradeOSConsole() {
                   <SpecRow label="Lead supplier" value={deal.candidates.find((c) => c.id === deal.finalSupplierId)?.name || "—"} />
                   <SpecRow label="ETA" value={deal.logistics ? `${deal.logistics.etaDays} days` : "—"} />
                   {deal.outcomeNote && <p className="text-xs text-muted-foreground italic pt-2">{deal.outcomeNote}</p>}
+                  <Separator className="my-2" />
+                  <Button size="sm" variant="outline" className="w-full" onClick={generateBrief} disabled={briefLoading}>
+                    {briefLoading
+                      ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Writing brief…</>
+                      : <><Sparkles className="w-3.5 h-3.5 mr-1" /> AI executive deal brief</>}
+                  </Button>
+                  {brief && (
+                    <div className="text-xs whitespace-pre-wrap leading-relaxed bg-background/70 border rounded p-3">
+                      {brief}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

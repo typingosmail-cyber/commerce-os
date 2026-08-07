@@ -17,6 +17,16 @@ export async function generateText(mode: string, prompt: string): Promise<string
   return (data.text as string) ?? "";
 }
 
+/** JSON generation (structured intent extraction). */
+export async function generateJSON<T = unknown>(mode: string, prompt: string): Promise<T> {
+  const raw = await generateText(mode, prompt);
+  const cleaned = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end === -1) throw new Error("AI returned no JSON.");
+  return JSON.parse(cleaned.slice(start, end + 1)) as T;
+}
+
 /** Streaming copilot chat. Calls onDelta with incremental text. */
 export async function streamAgent(
   messages: AgentMessage[],

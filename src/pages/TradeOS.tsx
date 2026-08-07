@@ -10,11 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, Sparkles, Upload, Trash2, ArrowRight, Bot, ShieldCheck, Coins, Truck, FileText, Activity, Zap, Mic } from "lucide-react";
+import { Brain, Sparkles, Upload, Trash2, ArrowRight, Bot, ShieldCheck, Coins, Truck, FileText, Activity, Zap, Mic, Loader2 } from "lucide-react";
 import {
   loadDeals, deleteDeal, extractIntent, createDealFromSpec, upsertDeal,
   type TradeDeal, type RiskProfile, type DealSpec,
 } from "@/lib/trade-os";
+import { generateJSON } from "@/lib/ai-agent";
 import { toast } from "sonner";
 
 const SAMPLE_PROMPTS = [
@@ -35,6 +36,21 @@ const PIPELINE_PREVIEW = [
   { icon: Truck, label: "Logistics", desc: "Route + ETA" },
 ];
 
+type AIIntent = {
+  product?: string;
+  specifications?: Record<string, string>;
+  quantity?: number;
+  unit?: string;
+  target_price?: number;
+  delivery_deadline?: string;
+  compliance_requirements?: string[];
+  risk_profile?: RiskProfile;
+  category?: string;
+  confidence?: number;
+  clarifications?: string[];
+  optimizations?: string[];
+};
+
 export default function TradeOS() {
   const navigate = useNavigate();
   const [deals, setDeals] = useState<TradeDeal[]>([]);
@@ -45,6 +61,8 @@ export default function TradeOS() {
   const [deadline, setDeadline] = useState(new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10));
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("balanced");
   const [attachments, setAttachments] = useState<string[]>([]);
+  const [ai, setAi] = useState<AIIntent | null>(null);
+  const [parsing, setParsing] = useState(false);
 
   useEffect(() => { setDeals(loadDeals()); }, []);
 
@@ -54,11 +72,45 @@ export default function TradeOS() {
     if (files.length) toast.success(`${files.length} attachment(s) registered (mock parse).`);
   };
 
+  const parseWithAI = async () => {
+    if (!text.trim()) { toast.error("Enter buyer intent first."); return; }
+    setParsing(true);
+    setAi(null);
+    try {
+      const out = await generateJSON<AIIntent>(
+        "deal_intent",
+        `Buyer brief: ${text}\nAttachments: ${attachments.join(", ") || "none"}\nCurrent form values — quantity: ${quantity} ${unit}, target ₹${targetPrice}/unit, deadline ${deadline}, risk ${riskProfile}.`,
+      );
+      setAi(out);
+      if (out.quantity && out.quantity > 0) setQuantity(out.quantity);
+      if (out.unit) setUnit(out.unit);
+      if (out.target_price && out.target_price > 0) setTargetPrice(out.target_price);
+      if (out.delivery_deadline && /^\d{4}-\d{2}-\d{2}$/.test(out.delivery_deadline)) setDeadline(out.delivery_deadline);
+      if (out.risk_profile) setRiskProfile(out.risk_profile);
+      toast.success("Intent normalized by the Understanding Agent.");
+    } catch (e) {
+      toast.error((e as Error).message || "AI parsing failed.");
+    } finally {
+      setParsing(false);
+    }
+  };
+
   const createIntent = () => {
     if (!text.trim()) { toast.error("Enter buyer intent or upload BOM."); return; }
     const spec: DealSpec = extractIntent({
       text, quantity, unit, targetPrice, deadline, riskProfile, attachments,
     });
+    if (ai) {
+      if (ai.product) spec.product = ai.product;
+      if (ai.specifications && Object.keys(ai.specifications).length) {
+        spec.specifications = { ...spec.specifications, ...ai.specifications };
+      }
+      if (ai.compliance_requirements?.length) {
+        spec.compliance = Array.from(new Set([...spec.compliance, ...ai.compliance_requirements]));
+      }
+      if (ai.category) spec.inferredCategory = ai.category;
+      if (typeof ai.confidence === "number") spec.confidence = Math.min(1, Math.max(0, ai.confidence));
+    }
     const deal = createDealFromSpec(spec);
     upsertDeal(deal);
     toast.success("Intent captured. Launching Trade OS console…");
@@ -132,8 +184,13 @@ export default function TradeOS() {
                     className="mt-1.5"
                   />
                   <div className="flex flex-wrap gap-2 mt-2">
+                    <Button size="sm" onClick={parseWithAI} disabled={parsing}>
+                      {parsing
+                        ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Normalizing…</>
+                        : <><Sparkles className="w-3.5 h-3.5 mr-1" /> Parse with AI</>}
+                    </Button>
                     {SAMPLE_PROMPTS.map((p, i) => (
-                      <Button key={i} size="sm" variant="outline" onClick={() => setText(p)}>
+                      <Button key={i} size="sm" variant="outline" onClick={() => { setText(p); setAi(null); }}>
                         Sample {i + 1}
                       </Button>
                     ))}
@@ -154,7 +211,51 @@ export default function TradeOS() {
                       ))}
                     </div>
                   )}
+
+                  {ai && (
+                    <Card className="mt-3 border-secondary/40 bg-secondary/5">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Brain className="w-4 h-4 text-secondary" /> Understanding Agent — normalized spec
+                          {typeof ai.confidence === "number" && (
+                            <Badge variant="outline" className="text-xs ml-auto">
+                              {(ai.confidence * 100).toFixed(0)}% confidence
+                            </Badge>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-sm">
+                        {ai.product && <div><span className="text-muted-foreground">Product:</span> <span className="font-medium">{ai.product}</span></div>}
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(ai.specifications || {}).map(([k, v]) => (
+                            <Badge key={k} variant="outline" className="text-xs">{k}: {String(v)}</Badge>
+                          ))}
+                          {(ai.compliance_requirements || []).map((c) => (
+                            <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
+                          ))}
+                          {ai.category && <Badge className="text-xs">{ai.category}</Badge>}
+                        </div>
+                        {!!ai.clarifications?.length && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">Clarifications needed</div>
+                            <ul className="list-disc pl-5 space-y-0.5 text-xs">
+                              {ai.clarifications.map((c, i) => <li key={i}>{c}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {!!ai.optimizations?.length && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">Suggested optimizations</div>
+                            <ul className="list-disc pl-5 space-y-0.5 text-xs">
+                              {ai.optimizations.map((c, i) => <li key={i}>{c}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
+
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
