@@ -15,6 +15,7 @@ import {
   loadDeals, deleteDeal, extractIntent, createDealFromSpec, upsertDeal,
   type TradeDeal, type RiskProfile, type DealSpec,
 } from "@/lib/trade-os";
+import { generateJSON } from "@/lib/ai-agent";
 import { toast } from "sonner";
 
 const SAMPLE_PROMPTS = [
