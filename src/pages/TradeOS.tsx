@@ -35,6 +35,21 @@ const PIPELINE_PREVIEW = [
   { icon: Truck, label: "Logistics", desc: "Route + ETA" },
 ];
 
+type AIIntent = {
+  product?: string;
+  specifications?: Record<string, string>;
+  quantity?: number;
+  unit?: string;
+  target_price?: number;
+  delivery_deadline?: string;
+  compliance_requirements?: string[];
+  risk_profile?: RiskProfile;
+  category?: string;
+  confidence?: number;
+  clarifications?: string[];
+  optimizations?: string[];
+};
+
 export default function TradeOS() {
   const navigate = useNavigate();
   const [deals, setDeals] = useState<TradeDeal[]>([]);
@@ -45,6 +60,8 @@ export default function TradeOS() {
   const [deadline, setDeadline] = useState(new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10));
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("balanced");
   const [attachments, setAttachments] = useState<string[]>([]);
+  const [ai, setAi] = useState<AIIntent | null>(null);
+  const [parsing, setParsing] = useState(false);
 
   useEffect(() => { setDeals(loadDeals()); }, []);
 
@@ -54,11 +71,45 @@ export default function TradeOS() {
     if (files.length) toast.success(`${files.length} attachment(s) registered (mock parse).`);
   };
 
+  const parseWithAI = async () => {
+    if (!text.trim()) { toast.error("Enter buyer intent first."); return; }
+    setParsing(true);
+    setAi(null);
+    try {
+      const out = await generateJSON<AIIntent>(
+        "deal_intent",
+        `Buyer brief: ${text}\nAttachments: ${attachments.join(", ") || "none"}\nCurrent form values — quantity: ${quantity} ${unit}, target ₹${targetPrice}/unit, deadline ${deadline}, risk ${riskProfile}.`,
+      );
+      setAi(out);
+      if (out.quantity && out.quantity > 0) setQuantity(out.quantity);
+      if (out.unit) setUnit(out.unit);
+      if (out.target_price && out.target_price > 0) setTargetPrice(out.target_price);
+      if (out.delivery_deadline && /^\d{4}-\d{2}-\d{2}$/.test(out.delivery_deadline)) setDeadline(out.delivery_deadline);
+      if (out.risk_profile) setRiskProfile(out.risk_profile);
+      toast.success("Intent normalized by the Understanding Agent.");
+    } catch (e) {
+      toast.error((e as Error).message || "AI parsing failed.");
+    } finally {
+      setParsing(false);
+    }
+  };
+
   const createIntent = () => {
     if (!text.trim()) { toast.error("Enter buyer intent or upload BOM."); return; }
     const spec: DealSpec = extractIntent({
       text, quantity, unit, targetPrice, deadline, riskProfile, attachments,
     });
+    if (ai) {
+      if (ai.product) spec.product = ai.product;
+      if (ai.specifications && Object.keys(ai.specifications).length) {
+        spec.specifications = { ...spec.specifications, ...ai.specifications };
+      }
+      if (ai.compliance_requirements?.length) {
+        spec.compliance = Array.from(new Set([...spec.compliance, ...ai.compliance_requirements]));
+      }
+      if (ai.category) spec.inferredCategory = ai.category;
+      if (typeof ai.confidence === "number") spec.confidence = Math.min(1, Math.max(0, ai.confidence));
+    }
     const deal = createDealFromSpec(spec);
     upsertDeal(deal);
     toast.success("Intent captured. Launching Trade OS console…");
