@@ -894,14 +894,53 @@ const EVENT_ICON_MAP = {
   Trophy, CalendarDays, ShieldCheck, AlertOctagon, BadgeCheck, UserCog,
 } as const;
 
+const prettyEventType = (t: string) => t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
 function AuditTrailPanel({ entries, currentLimit }: { entries: CreditLimitAuditEntry[]; currentLimit: number }) {
-  const [filter, setFilter] = useState<"all" | "positive" | "negative">("all");
+  const [filter, setFilter] = useState<"all" | "positive" | "negative" | "neutral">("all");
+  const [factorFilter, setFactorFilter] = useState<string>("all");
+  const [eventFilter, setEventFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
   const summary = useMemo(() => summarizeAuditTrail(entries), [entries]);
 
-  const filtered = entries.filter((e) =>
-    filter === "all" ? true : filter === "positive" ? e.delta > 0 : e.delta < 0,
+  const factorOptions = useMemo(
+    () => Array.from(new Set(entries.map((e) => e.factor).filter(Boolean) as string[])).sort(),
+    [entries],
   );
+  const eventOptions = useMemo(
+    () => Array.from(new Set(entries.map((e) => e.eventType))).sort(),
+    [entries],
+  );
+
+  const filtered = useMemo(() => entries.filter((e) => {
+    const dirOk =
+      filter === "all" ? true
+      : filter === "positive" ? e.delta > 0
+      : filter === "negative" ? e.delta < 0
+      : e.delta === 0;
+    const factorOk =
+      factorFilter === "all" ? true
+      : factorFilter === "__none" ? !e.factor
+      : e.factor === factorFilter;
+    const eventOk = eventFilter === "all" ? true : e.eventType === eventFilter;
+    const q = search.trim().toLowerCase();
+    const searchOk = !q || `${e.title} ${e.description} ${e.reference ?? ""} ${e.actor}`.toLowerCase().includes(q);
+    return dirOk && factorOk && eventOk && searchOk;
+  }), [entries, filter, factorFilter, eventFilter, search]);
+
+  const activeFilterLabel = [
+    filter !== "all" ? filter : null,
+    factorFilter !== "all" ? (factorFilter === "__none" ? "no factor" : factorFilter) : null,
+    eventFilter !== "all" ? prettyEventType(eventFilter) : null,
+    search.trim() ? `"${search.trim()}"` : null,
+  ].filter(Boolean).join(" · ") || "all events";
+
+  const hasFilters = filter !== "all" || factorFilter !== "all" || eventFilter !== "all" || search.trim() !== "";
+  const resetFilters = () => { setFilter("all"); setFactorFilter("all"); setEventFilter("all"); setSearch(""); };
+
+  const filteredNet = filtered.reduce((s, e) => s + e.delta, 0);
+
 
 
   return (
