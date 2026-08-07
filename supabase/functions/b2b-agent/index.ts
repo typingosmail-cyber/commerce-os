@@ -76,6 +76,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3.6-flash",
         stream,
+        ...(mode === "deal_intent" ? { response_format: { type: "json_object" } } : {}),
         messages: [{ role: "system", content: system }, ...messages],
       }),
     });
