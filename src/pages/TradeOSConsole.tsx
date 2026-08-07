@@ -36,6 +36,33 @@ export default function TradeOSConsole() {
   const { id } = useParams<{ id: string }>();
   const [deal, setDeal] = useState<TradeDeal | undefined>(() => (id ? getDeal(id) : undefined));
   const [autoRunning, setAutoRunning] = useState(false);
+  const [brief, setBrief] = useState("");
+  const [briefLoading, setBriefLoading] = useState(false);
+
+  const generateBrief = async () => {
+    if (!deal) return;
+    setBriefLoading(true);
+    try {
+      const lead = deal.candidates.find((c) => c.id === deal.finalSupplierId);
+      const payload = {
+        spec: deal.spec,
+        finalPrice: deal.finalPrice,
+        contract: deal.contract,
+        escrow: deal.escrow,
+        logistics: deal.logistics,
+        leadSupplier: lead,
+        topCandidates: deal.candidates.slice(0, 3),
+        simulations: deal.simulations,
+      };
+      const out = await generateText("deal_brief", JSON.stringify(payload));
+      setBrief(out);
+    } catch (e) {
+      toast.error((e as Error).message || "Brief generation failed.");
+    } finally {
+      setBriefLoading(false);
+    }
+  };
+
 
   useEffect(() => { if (id) setDeal(getDeal(id)); }, [id]);
 
