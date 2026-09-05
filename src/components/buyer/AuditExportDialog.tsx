@@ -15,7 +15,8 @@ import type { CreditLimitAuditEntry } from "@/lib/bnpl";
 type ColumnKey =
   | "date" | "timestamp" | "eventType" | "title" | "description" | "actor"
   | "factor" | "factorBefore" | "factorAfter" | "factorDelta"
-  | "limitBefore" | "limitAfter" | "delta" | "direction" | "reference" | "id";
+  | "limitBefore" | "limitAfter" | "delta" | "direction" | "reference"
+  | "artifactIds" | "artifactDetail" | "id";
 
 interface ColumnDef {
   key: ColumnKey;
