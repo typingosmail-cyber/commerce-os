@@ -927,7 +927,8 @@ function AuditTrailPanel({ entries, currentLimit }: { entries: CreditLimitAuditE
       : e.factor === factorFilter;
     const eventOk = eventFilter === "all" ? true : e.eventType === eventFilter;
     const q = search.trim().toLowerCase();
-    const searchOk = !q || `${e.title} ${e.description} ${e.reference ?? ""} ${e.actor}`.toLowerCase().includes(q);
+    const artifactText = (e.artifacts ?? []).map(a => `${a.id} ${a.label} ${a.kind}`).join(" ");
+    const searchOk = !q || `${e.title} ${e.description} ${e.reference ?? ""} ${e.actor} ${artifactText}`.toLowerCase().includes(q);
     return dirOk && factorOk && eventOk && searchOk;
   }), [entries, filter, factorFilter, eventFilter, search]);
 
