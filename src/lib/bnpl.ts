@@ -374,6 +374,28 @@ export type AuditEventType =
   | "verification_upgrade"
   | "manual_review";
 
+export type AuditArtifactKind =
+  | "order"
+  | "invoice"
+  | "payment"
+  | "dispute"
+  | "review_decision"
+  | "trust_document"
+  | "gst_filing"
+  | "underwriting_memo";
+
+export interface AuditArtifact {
+  id: string;              // e.g. ORD-8675, INV-8675-A
+  kind: AuditArtifactKind;
+  label: string;           // human readable name
+  summary: string;         // one-line description of what it proves
+  issuedOn?: string;       // ISO date
+  amount?: number;         // INR where relevant
+  status?: string;         // e.g. "Paid", "Verified", "Resolved"
+  issuer?: string;         // supplier / reviewer / authority
+  fields?: { label: string; value: string }[];
+}
+
 export interface CreditLimitAuditEntry {
   id: string;
   date: string; // ISO date
@@ -388,7 +410,21 @@ export interface CreditLimitAuditEntry {
   delta: number; // +/- in INR
   reference?: string; // order ref, dispute id, etc.
   actor: "system" | "underwriter" | "buyer";
+  /** Underlying transaction / verification artifacts that caused this entry. */
+  artifacts?: AuditArtifact[];
 }
+
+export const ARTIFACT_META: Record<AuditArtifactKind, { label: string; icon: string }> = {
+  order: { label: "Order", icon: "Package" },
+  invoice: { label: "Invoice", icon: "Receipt" },
+  payment: { label: "Payment", icon: "Banknote" },
+  dispute: { label: "Dispute", icon: "Scale" },
+  review_decision: { label: "Review decision", icon: "UserCheck" },
+  trust_document: { label: "Trust document", icon: "FileCheck2" },
+  gst_filing: { label: "GST filing", icon: "ShieldCheck" },
+  underwriting_memo: { label: "Underwriting memo", icon: "FileText" },
+};
+
 
 const EVENT_META: Record<AuditEventType, { icon: string; tone: "positive" | "negative" | "neutral" }> = {
   initial_approval: { icon: "Sparkles", tone: "neutral" },
