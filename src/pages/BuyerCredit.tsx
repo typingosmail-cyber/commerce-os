@@ -1158,6 +1158,7 @@ function AuditTrailPanel({ entries, currentLimit }: { entries: CreditLimitAuditE
                               </span>
                             </div>
                           )}
+                          <AuditArtifactLinks artifacts={e.artifacts} />
                         </div>
                         <div className="text-right">
                           <p className={`text-sm font-bold ${neutral ? "text-foreground" : positive ? "text-success" : "text-destructive"}`}>
