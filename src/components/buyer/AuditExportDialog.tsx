@@ -40,6 +40,8 @@ const COLUMNS: ColumnDef[] = [
   { key: "delta", label: "Limit delta (INR)", group: "Delta", value: (e) => e.delta },
   { key: "direction", label: "Direction", group: "Delta", value: (e) => (e.delta > 0 ? "increase" : e.delta < 0 ? "decrease" : "neutral") },
   { key: "reference", label: "Reference ID", group: "Reference", value: (e) => e.reference ?? "" },
+  { key: "artifactIds", label: "Linked artifact IDs", group: "Reference", value: (e) => (e.artifacts ?? []).map(a => a.id).join(" | ") },
+  { key: "artifactDetail", label: "Linked artifacts (detail)", group: "Reference", value: (e) => (e.artifacts ?? []).map(a => `${a.kind}:${a.id} — ${a.label}`).join(" | ") },
   { key: "id", label: "Audit entry ID", group: "Reference", value: (e) => e.id },
 ];
 
