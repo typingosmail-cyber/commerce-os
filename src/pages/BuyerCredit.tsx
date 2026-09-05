@@ -29,6 +29,7 @@ import { downloadScheduleCsv, downloadSchedulePdf } from "@/lib/schedule-export"
 import { toast } from "@/hooks/use-toast";
 import { FactorDeltaPanel } from "@/components/buyer/FactorDeltaPanel";
 import { AuditExportDialog } from "@/components/buyer/AuditExportDialog";
+import { AuditArtifactLinks } from "@/components/buyer/AuditArtifactLinks";
 
 import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
 import { AutoRepaymentPanel } from "@/components/buyer/AutoRepaymentPanel";
