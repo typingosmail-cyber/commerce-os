@@ -374,6 +374,28 @@ export type AuditEventType =
   | "verification_upgrade"
   | "manual_review";
 
+export type AuditArtifactKind =
+  | "order"
+  | "invoice"
+  | "payment"
+  | "dispute"
+  | "review_decision"
+  | "trust_document"
+  | "gst_filing"
+  | "underwriting_memo";
+
+export interface AuditArtifact {
+  id: string;              // e.g. ORD-8675, INV-8675-A
+  kind: AuditArtifactKind;
+  label: string;           // human readable name
+  summary: string;         // one-line description of what it proves
+  issuedOn?: string;       // ISO date
+  amount?: number;         // INR where relevant
+  status?: string;         // e.g. "Paid", "Verified", "Resolved"
+  issuer?: string;         // supplier / reviewer / authority
+  fields?: { label: string; value: string }[];
+}
+
 export interface CreditLimitAuditEntry {
   id: string;
   date: string; // ISO date
@@ -388,7 +410,21 @@ export interface CreditLimitAuditEntry {
   delta: number; // +/- in INR
   reference?: string; // order ref, dispute id, etc.
   actor: "system" | "underwriter" | "buyer";
+  /** Underlying transaction / verification artifacts that caused this entry. */
+  artifacts?: AuditArtifact[];
 }
+
+export const ARTIFACT_META: Record<AuditArtifactKind, { label: string; icon: string }> = {
+  order: { label: "Order", icon: "Package" },
+  invoice: { label: "Invoice", icon: "Receipt" },
+  payment: { label: "Payment", icon: "Banknote" },
+  dispute: { label: "Dispute", icon: "Scale" },
+  review_decision: { label: "Review decision", icon: "UserCheck" },
+  trust_document: { label: "Trust document", icon: "FileCheck2" },
+  gst_filing: { label: "GST filing", icon: "ShieldCheck" },
+  underwriting_memo: { label: "Underwriting memo", icon: "FileText" },
+};
+
 
 const EVENT_META: Record<AuditEventType, { icon: string; tone: "positive" | "negative" | "neutral" }> = {
   initial_approval: { icon: "Sparkles", tone: "neutral" },
@@ -439,6 +475,26 @@ export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAudi
     delta: 50_000,
     reference: "ORD-8675",
     actor: "system",
+    artifacts: [
+      {
+        id: "ORD-8675", kind: "order", label: "Purchase order — Shree Ganesh Fasteners",
+        summary: "M12 hex bolts, 480 kg, delivered and accepted without deduction.",
+        issuedOn: day(38), amount: 240_000, status: "Completed", issuer: "Shree Ganesh Fasteners",
+        fields: [{ label: "Delivery", value: "On time (2 days early)" }, { label: "QC result", value: "Accepted in full" }],
+      },
+      {
+        id: "INV-8675-A", kind: "invoice", label: "Tax invoice INV-8675-A",
+        summary: "GST invoice raised against ORD-8675, settled in full via BNPL line.",
+        issuedOn: day(36), amount: 240_000, status: "Paid", issuer: "Shree Ganesh Fasteners",
+        fields: [{ label: "GSTIN", value: "27AABCS1429B1ZP" }, { label: "Tax", value: "18% IGST" }],
+      },
+      {
+        id: "PAY-44219", kind: "payment", label: "UPI AutoPay debit",
+        summary: "Auto-debit cleared 3 days before the due date; no retries required.",
+        issuedOn: day(2), amount: 240_000, status: "Success", issuer: "Vyapar AutoPay",
+        fields: [{ label: "Mandate", value: "UPI-AP-9931" }, { label: "UTR", value: "412884190237" }],
+      },
+    ],
   });
 
   push({
@@ -452,6 +508,26 @@ export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAudi
     delta: 75_000,
     reference: "VRF-2041",
     actor: "underwriter",
+    artifacts: [
+      {
+        id: "DOC-GST-2041", kind: "trust_document", label: "GST registration certificate",
+        summary: "Certificate verified against GSTN master data — legal name and address matched.",
+        issuedOn: day(210), status: "Verified", issuer: "GSTN",
+        fields: [{ label: "GSTIN", value: "27AAECV3391M1Z4" }, { label: "Filing status", value: "Up to date" }],
+      },
+      {
+        id: "DOC-BANK-778", kind: "trust_document", label: "6-month bank statement",
+        summary: "Average balance and inflow patterns corroborate declared turnover.",
+        issuedOn: day(14), status: "Verified", issuer: "HDFC Bank",
+        fields: [{ label: "Avg. monthly inflow", value: "₹18.4L" }, { label: "Bounces", value: "0" }],
+      },
+      {
+        id: "RVW-2041", kind: "review_decision", label: "Reviewer approval — tier upgrade",
+        summary: "Senior reviewer approved Gold tier with reason codes AP-CLEAR, AP-MATCH.",
+        issuedOn: day(9), status: "Approved", issuer: "A. Kulkarni (Senior Reviewer)",
+        fields: [{ label: "Reason codes", value: "AP-CLEAR, AP-MATCH" }, { label: "Note", value: "All cross-checks clean." }],
+      },
+    ],
   });
 
   push({
@@ -464,6 +540,20 @@ export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAudi
     factorAfter: 55,
     delta: 100_000,
     actor: "system",
+    artifacts: [
+      {
+        id: "INV-BATCH-Q3", kind: "invoice", label: "Q3 invoice batch (34 invoices)",
+        summary: "Aggregated invoice set used to compute the GMV milestone.",
+        issuedOn: day(20), amount: profile.totalGmv, status: "Reconciled", issuer: "Vyapar Ledger",
+        fields: [{ label: "Invoices", value: "34" }, { label: "Suppliers", value: "9" }],
+      },
+      {
+        id: "GSTR3B-Q3", kind: "gst_filing", label: "GSTR-3B filing, Q3",
+        summary: "Filed turnover matched platform GMV within 4% tolerance.",
+        issuedOn: day(25), status: "Filed", issuer: "GSTN",
+        fields: [{ label: "Variance vs platform", value: "3.6%" }],
+      },
+    ],
   });
 
   push({
@@ -477,6 +567,19 @@ export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAudi
     delta: -25_000,
     reference: "DSP-118",
     actor: "system",
+    artifacts: [
+      {
+        id: "DSP-118", kind: "dispute", label: "Quality dispute — grade mismatch",
+        summary: "Buyer raised a grade 8.8 vs 10.9 mismatch claim on delivered stock.",
+        issuedOn: day(34), amount: 92_000, status: "Open", issuer: "Buyer",
+        fields: [{ label: "Evidence", value: "Lab test report + photos" }],
+      },
+      {
+        id: "ORD-8512", kind: "order", label: "Purchase order — Mumbai Bolt Works",
+        summary: "Order under dispute; partial acceptance recorded.",
+        issuedOn: day(48), amount: 92_000, status: "Disputed", issuer: "Mumbai Bolt Works",
+      },
+    ],
   });
 
   push({
@@ -490,6 +593,23 @@ export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAudi
     delta: 30_000,
     reference: "DSP-105",
     actor: "underwriter",
+    artifacts: [
+      {
+        id: "DSP-105", kind: "dispute", label: "Short-delivery dispute",
+        summary: "Resolved with a credit note; buyer found not at fault.",
+        issuedOn: day(61), amount: 41_500, status: "Resolved (buyer favour)", issuer: "Vyapar Resolution Desk",
+      },
+      {
+        id: "CRN-105-1", kind: "invoice", label: "Credit note CRN-105-1",
+        summary: "Supplier-issued credit note settling the shortfall.",
+        issuedOn: day(36), amount: 41_500, status: "Applied", issuer: "Pioneer Industrial Supplies",
+      },
+      {
+        id: "RVW-105", kind: "review_decision", label: "Resolution decision",
+        summary: "Underwriter restored the dispute-rate factor after closure.",
+        issuedOn: day(35), status: "Closed", issuer: "R. Menon (Underwriter)",
+      },
+    ],
   });
 
   push({
@@ -503,6 +623,19 @@ export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAudi
     delta: 40_000,
     reference: "ORD-8401",
     actor: "system",
+    artifacts: [
+      {
+        id: "ORD-8401", kind: "order", label: "Purchase order — Bharat Steel Components",
+        summary: "Fully delivered and accepted order financed on the BNPL line.",
+        issuedOn: day(88), amount: 180_000, status: "Completed", issuer: "Bharat Steel Components",
+      },
+      {
+        id: "PAY-41077", kind: "payment", label: "e-NACH debit",
+        summary: "Debit cleared on the due date at first attempt.",
+        issuedOn: day(52), amount: 180_000, status: "Success", issuer: "Vyapar AutoPay",
+        fields: [{ label: "Mandate", value: "NACH-7712" }],
+      },
+    ],
   });
 
   push({
@@ -515,6 +648,13 @@ export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAudi
     factorAfter: 60,
     delta: 35_000,
     actor: "system",
+    artifacts: [
+      {
+        id: "DOC-KYC-0001", kind: "trust_document", label: "Onboarding KYC pack",
+        summary: "Original onboarding record establishing the account start date.",
+        issuedOn: day(443), status: "Verified", issuer: "Vyapar Compliance",
+      },
+    ],
   });
 
   push({
@@ -528,6 +668,19 @@ export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAudi
     delta: -45_000,
     reference: "ORD-8190",
     actor: "system",
+    artifacts: [
+      {
+        id: "ORD-8190", kind: "order", label: "Purchase order — Velocity Fasteners LLP",
+        summary: "Order financed on the line whose installment slipped past due.",
+        issuedOn: day(130), amount: 156_000, status: "Completed", issuer: "Velocity Fasteners LLP",
+      },
+      {
+        id: "PAY-38804", kind: "payment", label: "Retried auto-debit",
+        summary: "First two attempts failed (insufficient balance); third attempt cleared on day 4.",
+        issuedOn: day(96), amount: 156_000, status: "Success after 2 retries", issuer: "Vyapar AutoPay",
+        fields: [{ label: "Days late", value: "4" }, { label: "Late fee", value: "₹1,248" }],
+      },
+    ],
   });
 
   push({
@@ -540,6 +693,14 @@ export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAudi
     factorAfter: 68,
     delta: 60_000,
     actor: "system",
+    artifacts: [
+      {
+        id: "RTG-6SUP", kind: "review_decision", label: "Supplier rating roll-up (6 suppliers)",
+        summary: "Average counterparty rating 4.7/5 across 21 completed orders.",
+        issuedOn: day(120), status: "Computed", issuer: "Trust Engine",
+        fields: [{ label: "Orders considered", value: "21" }],
+      },
+    ],
   });
 
   push({
@@ -550,6 +711,19 @@ export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAudi
     delta: 80_000,
     reference: "RVW-Q3",
     actor: "underwriter",
+    artifacts: [
+      {
+        id: "RVW-Q3", kind: "review_decision", label: "Quarterly review decision",
+        summary: "Committee approved a discretionary ₹80,000 uplift.",
+        issuedOn: day(180), status: "Approved", issuer: "Credit Committee",
+        fields: [{ label: "Vote", value: "3 of 3 in favour" }],
+      },
+      {
+        id: "MEMO-Q3-114", kind: "underwriting_memo", label: "Underwriting memo Q3",
+        summary: "Memo covering audited financials, exposure and concentration limits.",
+        issuedOn: day(182), status: "Filed", issuer: "Risk Team",
+      },
+    ],
   });
 
   // Initial approval — anchors the trail
@@ -564,7 +738,25 @@ export function generateAuditTrail(profile: BuyerCreditProfile): CreditLimitAudi
     delta: limit,
     actor: "underwriter",
     reference: "UW-0001",
+    artifacts: [
+      {
+        id: "UW-0001", kind: "underwriting_memo", label: "Initial underwriting memo",
+        summary: "Baseline limit derived from GST turnover, bank inflows and platform activity.",
+        issuedOn: day(420), amount: limit, status: "Approved", issuer: "Underwriting",
+      },
+      {
+        id: "GSTR3B-Y1", kind: "gst_filing", label: "GSTR-3B filings (12 months)",
+        summary: "Continuous filing history with no lapses used as the turnover basis.",
+        issuedOn: day(425), status: "Filed", issuer: "GSTN",
+      },
+      {
+        id: "DOC-PAN-11", kind: "trust_document", label: "PAN & incorporation certificate",
+        summary: "Identity documents verified at onboarding.",
+        issuedOn: day(440), status: "Verified", issuer: "Vyapar Compliance",
+      },
+    ],
   });
+
 
   return trail;
 }

@@ -15,7 +15,8 @@ import type { CreditLimitAuditEntry } from "@/lib/bnpl";
 type ColumnKey =
   | "date" | "timestamp" | "eventType" | "title" | "description" | "actor"
   | "factor" | "factorBefore" | "factorAfter" | "factorDelta"
-  | "limitBefore" | "limitAfter" | "delta" | "direction" | "reference" | "id";
+  | "limitBefore" | "limitAfter" | "delta" | "direction" | "reference"
+  | "artifactIds" | "artifactDetail" | "id";
 
 interface ColumnDef {
   key: ColumnKey;
@@ -40,12 +41,14 @@ const COLUMNS: ColumnDef[] = [
   { key: "delta", label: "Limit delta (INR)", group: "Delta", value: (e) => e.delta },
   { key: "direction", label: "Direction", group: "Delta", value: (e) => (e.delta > 0 ? "increase" : e.delta < 0 ? "decrease" : "neutral") },
   { key: "reference", label: "Reference ID", group: "Reference", value: (e) => e.reference ?? "" },
+  { key: "artifactIds", label: "Linked artifact IDs", group: "Reference", value: (e) => (e.artifacts ?? []).map(a => a.id).join(" | ") },
+  { key: "artifactDetail", label: "Linked artifacts (detail)", group: "Reference", value: (e) => (e.artifacts ?? []).map(a => `${a.kind}:${a.id} — ${a.label}`).join(" | ") },
   { key: "id", label: "Audit entry ID", group: "Reference", value: (e) => e.id },
 ];
 
 const DEFAULT_COLUMNS: ColumnKey[] = [
   "date", "eventType", "title", "actor", "factor", "factorBefore", "factorAfter",
-  "limitBefore", "limitAfter", "delta", "reference",
+  "limitBefore", "limitAfter", "delta", "reference", "artifactIds",
 ];
 
 const GROUPS = ["Timestamps", "Actor", "Factor", "Delta", "Reference"] as const;

@@ -29,6 +29,7 @@ import { downloadScheduleCsv, downloadSchedulePdf } from "@/lib/schedule-export"
 import { toast } from "@/hooks/use-toast";
 import { FactorDeltaPanel } from "@/components/buyer/FactorDeltaPanel";
 import { AuditExportDialog } from "@/components/buyer/AuditExportDialog";
+import { AuditArtifactLinks } from "@/components/buyer/AuditArtifactLinks";
 
 import { LimitRequestPanel } from "@/components/buyer/LimitRequestPanel";
 import { AutoRepaymentPanel } from "@/components/buyer/AutoRepaymentPanel";
@@ -927,7 +928,8 @@ function AuditTrailPanel({ entries, currentLimit }: { entries: CreditLimitAuditE
       : e.factor === factorFilter;
     const eventOk = eventFilter === "all" ? true : e.eventType === eventFilter;
     const q = search.trim().toLowerCase();
-    const searchOk = !q || `${e.title} ${e.description} ${e.reference ?? ""} ${e.actor}`.toLowerCase().includes(q);
+    const artifactText = (e.artifacts ?? []).map(a => `${a.id} ${a.label} ${a.kind}`).join(" ");
+    const searchOk = !q || `${e.title} ${e.description} ${e.reference ?? ""} ${e.actor} ${artifactText}`.toLowerCase().includes(q);
     return dirOk && factorOk && eventOk && searchOk;
   }), [entries, filter, factorFilter, eventFilter, search]);
 
@@ -1158,6 +1160,7 @@ function AuditTrailPanel({ entries, currentLimit }: { entries: CreditLimitAuditE
                               </span>
                             </div>
                           )}
+                          <AuditArtifactLinks artifacts={e.artifacts} />
                         </div>
                         <div className="text-right">
                           <p className={`text-sm font-bold ${neutral ? "text-foreground" : positive ? "text-success" : "text-destructive"}`}>
