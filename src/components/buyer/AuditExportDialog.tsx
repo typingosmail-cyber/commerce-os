@@ -48,7 +48,7 @@ const COLUMNS: ColumnDef[] = [
 
 const DEFAULT_COLUMNS: ColumnKey[] = [
   "date", "eventType", "title", "actor", "factor", "factorBefore", "factorAfter",
-  "limitBefore", "limitAfter", "delta", "reference",
+  "limitBefore", "limitAfter", "delta", "reference", "artifactIds",
 ];
 
 const GROUPS = ["Timestamps", "Actor", "Factor", "Delta", "Reference"] as const;
