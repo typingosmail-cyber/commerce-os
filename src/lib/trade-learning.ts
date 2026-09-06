@@ -61,14 +61,14 @@ export function recordDealOutcome(deal: TradeDeal): DealOutcome | null {
   const winner = deal.candidates.find((c) => c.id === deal.finalSupplierId) ?? deal.candidates[0];
   if (!winner || !deal.finalPrice) return null;
 
-  const fair = (winner as any).fairPrice ?? (winner as any).quotedPrice ?? deal.finalPrice;
+  const fair = winner.pricePerUnit || deal.finalPrice;
   const outcome: DealOutcome = {
     dealId: deal.id,
     ts: Date.now(),
     category: deal.spec.inferredCategory || "General",
     supplierId: winner.id,
-    supplierName: (winner as any).name,
-    trustScore: (winner as any).trustScore,
+    supplierName: winner.name,
+    trustScore: winner.trustScore,
     fairPrice: fair,
     finalPrice: deal.finalPrice,
     savingsPct: fair > 0 ? +(((fair - deal.finalPrice) / fair) * 100).toFixed(2) : 0,
