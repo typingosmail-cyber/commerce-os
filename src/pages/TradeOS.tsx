@@ -15,7 +15,10 @@ import {
   loadDeals, deleteDeal, extractIntent, createDealFromSpec, upsertDeal,
   type TradeDeal, type RiskProfile, type DealSpec,
 } from "@/lib/trade-os";
-import { generateJSON } from "@/lib/ai-agent";
+import { generateJSON, generateJSONParts, type ContentPart } from "@/lib/ai-agent";
+import { useSpeechInput } from "@/hooks/use-speech-input";
+import { computePriors, priorInsights, loadOutcomes, clearOutcomes } from "@/lib/trade-learning";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 
 const SAMPLE_PROMPTS = [
@@ -35,6 +38,8 @@ const PIPELINE_PREVIEW = [
   { icon: Coins, label: "Escrow", desc: "Milestone release" },
   { icon: Truck, label: "Logistics", desc: "Route + ETA" },
 ];
+
+type Attachment = { name: string; kind: "text" | "image" | "binary"; content?: string; dataUrl?: string };
 
 type AIIntent = {
   product?: string;
@@ -60,16 +65,40 @@ export default function TradeOS() {
   const [targetPrice, setTargetPrice] = useState(4.2);
   const [deadline, setDeadline] = useState(new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10));
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("balanced");
-  const [attachments, setAttachments] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [ai, setAi] = useState<AIIntent | null>(null);
   const [parsing, setParsing] = useState(false);
 
   useEffect(() => { setDeals(loadDeals()); }, []);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).map((f) => f.name);
-    setAttachments((p) => [...p, ...files]);
-    if (files.length) toast.success(`${files.length} attachment(s) registered (mock parse).`);
+  const [learning, setLearning] = useState(() => computePriors());
+  const speech = useSpeechInput((chunk) => setText((t) => (t ? `${t} ${chunk}` : chunk)));
+
+  const readFile = (file: File) =>
+    new Promise<Attachment>((resolve) => {
+      const reader = new FileReader();
+      const isImage = file.type.startsWith("image/");
+      const isText = file.type.startsWith("text/") || /\.(csv|txt|md|json|xml)$/i.test(file.name);
+      reader.onload = () => {
+        const result = String(reader.result ?? "");
+        if (isImage) resolve({ name: file.name, kind: "image", dataUrl: result });
+        else if (isText) resolve({ name: file.name, kind: "text", content: result.slice(0, 20000) });
+        else resolve({ name: file.name, kind: "binary" });
+      };
+      reader.onerror = () => resolve({ name: file.name, kind: "binary" });
+      if (isImage) reader.readAsDataURL(file);
+      else if (isText) reader.readAsText(file);
+      else resolve({ name: file.name, kind: "binary" });
+    });
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const parsed = await Promise.all(files.map(readFile));
+    setAttachments((p) => [...p, ...parsed]);
+    const readable = parsed.filter((a) => a.kind !== "binary").length;
+    toast.success(`${parsed.length} file(s) attached — ${readable} will be read by the Understanding Agent.`);
+    e.target.value = "";
   };
 
   const parseWithAI = async () => {
@@ -77,10 +106,25 @@ export default function TradeOS() {
     setParsing(true);
     setAi(null);
     try {
-      const out = await generateJSON<AIIntent>(
-        "deal_intent",
-        `Buyer brief: ${text}\nAttachments: ${attachments.join(", ") || "none"}\nCurrent form values — quantity: ${quantity} ${unit}, target ₹${targetPrice}/unit, deadline ${deadline}, risk ${riskProfile}.`,
-      );
+      const docText = attachments
+        .filter((a) => a.kind === "text" && a.content)
+        .map((a) => `--- ${a.name} ---\n${a.content}`)
+        .join("\n\n");
+      const images = attachments.filter((a) => a.kind === "image" && a.dataUrl);
+      const basePrompt =
+        `Buyer brief: ${text}\n` +
+        `Attachments: ${attachments.map((a) => a.name).join(", ") || "none"}\n` +
+        (docText ? `Attached BOM / specification text:\n${docText}\n` : "") +
+        (images.length ? `${images.length} attached image(s) of BOM/spec sheets — read them.\n` : "") +
+        `Learned priors: ${learning.deals} executed deals, avg negotiated saving ${learning.avgSavingsPct}%, price index ${learning.priceIndex}.\n` +
+        `Current form values — quantity: ${quantity} ${unit}, target ₹${targetPrice}/unit, deadline ${deadline}, risk ${riskProfile}.`;
+
+      const out = images.length
+        ? await generateJSONParts<AIIntent>("deal_intent", [
+            { type: "text", text: basePrompt },
+            ...images.map((a) => ({ type: "image_url" as const, image_url: { url: a.dataUrl as string } })),
+          ] as ContentPart[])
+        : await generateJSON<AIIntent>("deal_intent", basePrompt);
       setAi(out);
       if (out.quantity && out.quantity > 0) setQuantity(out.quantity);
       if (out.unit) setUnit(out.unit);
@@ -98,7 +142,8 @@ export default function TradeOS() {
   const createIntent = () => {
     if (!text.trim()) { toast.error("Enter buyer intent or upload BOM."); return; }
     const spec: DealSpec = extractIntent({
-      text, quantity, unit, targetPrice, deadline, riskProfile, attachments,
+      text, quantity, unit, targetPrice, deadline, riskProfile,
+      attachments: attachments.map((a) => a.name),
     });
     if (ai) {
       if (ai.product) spec.product = ai.product;
@@ -162,6 +207,7 @@ export default function TradeOS() {
           <TabsList>
             <TabsTrigger value="new">New deal</TabsTrigger>
             <TabsTrigger value="active">Active deals ({deals.length})</TabsTrigger>
+            <TabsTrigger value="learning">Learning loop ({learning.deals})</TabsTrigger>
           </TabsList>
 
           {/* Intent capture */}
@@ -194,8 +240,16 @@ export default function TradeOS() {
                         Sample {i + 1}
                       </Button>
                     ))}
-                    <Button size="sm" variant="ghost" onClick={() => toast.info("Voice capture (mock) — transcript inserted.")}>
-                      <Mic className="w-3.5 h-3.5 mr-1" /> Voice
+                    <Button
+                      size="sm"
+                      variant={speech.listening ? "destructive" : "ghost"}
+                      onClick={() => {
+                        if (!speech.supported) { toast.error("Voice input isn't supported in this browser. Try Chrome."); return; }
+                        speech.toggle();
+                      }}
+                    >
+                      <Mic className={`w-3.5 h-3.5 mr-1 ${speech.listening ? "animate-pulse" : ""}`} />
+                      {speech.listening ? "Stop dictation" : "Voice"}
                     </Button>
                     <label className="inline-flex">
                       <Button asChild size="sm" variant="ghost">
@@ -204,10 +258,23 @@ export default function TradeOS() {
                       <input type="file" multiple className="hidden" onChange={handleFile} />
                     </label>
                   </div>
+                  {speech.listening && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Listening… {speech.interim || "speak your requirement"}
+                    </p>
+                  )}
                   {attachments.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {attachments.map((a, i) => (
-                        <Badge key={i} variant="outline" className="text-xs">{a}</Badge>
+                        <Badge
+                          key={i}
+                          variant="outline"
+                          className="text-xs cursor-pointer"
+                          onClick={() => setAttachments((p) => p.filter((_, j) => j !== i))}
+                          title="Click to remove"
+                        >
+                          {a.name} · {a.kind === "image" ? "image read" : a.kind === "text" ? "text read" : "name only"}
+                        </Badge>
                       ))}
                     </div>
                   )}
