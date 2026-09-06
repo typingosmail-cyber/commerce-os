@@ -1,5 +1,5 @@
 // B2B AI agent — streaming chat + one-shot generation helpers.
-// Uses Lovable AI Gateway (chat completions, google/gemini-3.6-flash).
+// Uses Lovable AI Gateway (chat completions, google/gemini-3.7-flash).
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
         "X-Lovable-AIG-SDK": "fetch",
       },
       body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
+        model: "google/gemini-3.7-flash",
         stream,
         ...(mode === "deal_intent" ? { response_format: { type: "json_object" } } : {}),
         messages: [{ role: "system", content: system }, ...messages],
