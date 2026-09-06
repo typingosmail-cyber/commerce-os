@@ -3,6 +3,8 @@
 // Implements all 7 vision steps: Intent → Multi-Agent → Trust → Match/Simulate
 // → Transaction → Logistics → Learning Loop.
 
+import { recordDealOutcome, computePriors } from "./trade-learning";
+
 const STORAGE_KEY = "vyapar_trade_os_v1";
 
 // ---------------------------------------------------------------------------
@@ -712,12 +714,14 @@ export const AGENT_PIPELINE: AgentStep[] = [
         { ts: Date.now(), metric: "Negotiation savings %", value: +pseudoRandom(d.id + "sav", 4, 11).toFixed(2), delta: +pseudoRandom(d.id + "savd", 0.1, 0.6).toFixed(2) },
         { ts: Date.now(), metric: "Risk prediction F1", value: +pseudoRandom(d.id + "f1", 0.78, 0.92).toFixed(3), delta: +pseudoRandom(d.id + "f1d", 0.001, 0.012).toFixed(3) },
       );
-      d.outcomeNote = "Deal executed end-to-end. Learning loop updated 3 model signals.";
+      recordDealOutcome(d);
+      const priors = computePriors();
+      d.outcomeNote = `Deal executed end-to-end. Learning store now holds ${priors.deals} outcome${priors.deals === 1 ? "" : "s"}; matching accuracy ${priors.matchingAccuracyPct}%.`;
       pushLog(d, {
         agent: "Learning Loop",
         status: "ok",
-        message: "Captured outcomes; pushed 3 signals to learning store.",
-        data: { signals: d.learning.length },
+        message: "Captured outcomes; pushed 3 signals and 1 deal record to the cross-deal learning store.",
+        data: { signals: d.learning.length, storedOutcomes: computePriors().deals },
       });
     },
   },

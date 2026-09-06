@@ -15,7 +15,10 @@ import {
   loadDeals, deleteDeal, extractIntent, createDealFromSpec, upsertDeal,
   type TradeDeal, type RiskProfile, type DealSpec,
 } from "@/lib/trade-os";
-import { generateJSON } from "@/lib/ai-agent";
+import { generateJSON, generateJSONParts, type ContentPart } from "@/lib/ai-agent";
+import { useSpeechInput } from "@/hooks/use-speech-input";
+import { computePriors, priorInsights, loadOutcomes, clearOutcomes } from "@/lib/trade-learning";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 
 const SAMPLE_PROMPTS = [
@@ -35,6 +38,8 @@ const PIPELINE_PREVIEW = [
   { icon: Coins, label: "Escrow", desc: "Milestone release" },
   { icon: Truck, label: "Logistics", desc: "Route + ETA" },
 ];
+
+type Attachment = { name: string; kind: "text" | "image" | "binary"; content?: string; dataUrl?: string };
 
 type AIIntent = {
   product?: string;
@@ -60,16 +65,40 @@ export default function TradeOS() {
   const [targetPrice, setTargetPrice] = useState(4.2);
   const [deadline, setDeadline] = useState(new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10));
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("balanced");
-  const [attachments, setAttachments] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [ai, setAi] = useState<AIIntent | null>(null);
   const [parsing, setParsing] = useState(false);
 
   useEffect(() => { setDeals(loadDeals()); }, []);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).map((f) => f.name);
-    setAttachments((p) => [...p, ...files]);
-    if (files.length) toast.success(`${files.length} attachment(s) registered (mock parse).`);
+  const [learning, setLearning] = useState(() => computePriors());
+  const speech = useSpeechInput((chunk) => setText((t) => (t ? `${t} ${chunk}` : chunk)));
+
+  const readFile = (file: File) =>
+    new Promise<Attachment>((resolve) => {
+      const reader = new FileReader();
+      const isImage = file.type.startsWith("image/");
+      const isText = file.type.startsWith("text/") || /\.(csv|txt|md|json|xml)$/i.test(file.name);
+      reader.onload = () => {
+        const result = String(reader.result ?? "");
+        if (isImage) resolve({ name: file.name, kind: "image", dataUrl: result });
+        else if (isText) resolve({ name: file.name, kind: "text", content: result.slice(0, 20000) });
+        else resolve({ name: file.name, kind: "binary" });
+      };
+      reader.onerror = () => resolve({ name: file.name, kind: "binary" });
+      if (isImage) reader.readAsDataURL(file);
+      else if (isText) reader.readAsText(file);
+      else resolve({ name: file.name, kind: "binary" });
+    });
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const parsed = await Promise.all(files.map(readFile));
+    setAttachments((p) => [...p, ...parsed]);
+    const readable = parsed.filter((a) => a.kind !== "binary").length;
+    toast.success(`${parsed.length} file(s) attached — ${readable} will be read by the Understanding Agent.`);
+    e.target.value = "";
   };
 
   const parseWithAI = async () => {
@@ -77,10 +106,25 @@ export default function TradeOS() {
     setParsing(true);
     setAi(null);
     try {
-      const out = await generateJSON<AIIntent>(
-        "deal_intent",
-        `Buyer brief: ${text}\nAttachments: ${attachments.join(", ") || "none"}\nCurrent form values — quantity: ${quantity} ${unit}, target ₹${targetPrice}/unit, deadline ${deadline}, risk ${riskProfile}.`,
-      );
+      const docText = attachments
+        .filter((a) => a.kind === "text" && a.content)
+        .map((a) => `--- ${a.name} ---\n${a.content}`)
+        .join("\n\n");
+      const images = attachments.filter((a) => a.kind === "image" && a.dataUrl);
+      const basePrompt =
+        `Buyer brief: ${text}\n` +
+        `Attachments: ${attachments.map((a) => a.name).join(", ") || "none"}\n` +
+        (docText ? `Attached BOM / specification text:\n${docText}\n` : "") +
+        (images.length ? `${images.length} attached image(s) of BOM/spec sheets — read them.\n` : "") +
+        `Learned priors: ${learning.deals} executed deals, avg negotiated saving ${learning.avgSavingsPct}%, price index ${learning.priceIndex}.\n` +
+        `Current form values — quantity: ${quantity} ${unit}, target ₹${targetPrice}/unit, deadline ${deadline}, risk ${riskProfile}.`;
+
+      const out = images.length
+        ? await generateJSONParts<AIIntent>("deal_intent", [
+            { type: "text", text: basePrompt },
+            ...images.map((a) => ({ type: "image_url" as const, image_url: { url: a.dataUrl as string } })),
+          ] as ContentPart[])
+        : await generateJSON<AIIntent>("deal_intent", basePrompt);
       setAi(out);
       if (out.quantity && out.quantity > 0) setQuantity(out.quantity);
       if (out.unit) setUnit(out.unit);
@@ -98,7 +142,8 @@ export default function TradeOS() {
   const createIntent = () => {
     if (!text.trim()) { toast.error("Enter buyer intent or upload BOM."); return; }
     const spec: DealSpec = extractIntent({
-      text, quantity, unit, targetPrice, deadline, riskProfile, attachments,
+      text, quantity, unit, targetPrice, deadline, riskProfile,
+      attachments: attachments.map((a) => a.name),
     });
     if (ai) {
       if (ai.product) spec.product = ai.product;
@@ -162,6 +207,7 @@ export default function TradeOS() {
           <TabsList>
             <TabsTrigger value="new">New deal</TabsTrigger>
             <TabsTrigger value="active">Active deals ({deals.length})</TabsTrigger>
+            <TabsTrigger value="learning">Learning loop ({learning.deals})</TabsTrigger>
           </TabsList>
 
           {/* Intent capture */}
@@ -194,8 +240,16 @@ export default function TradeOS() {
                         Sample {i + 1}
                       </Button>
                     ))}
-                    <Button size="sm" variant="ghost" onClick={() => toast.info("Voice capture (mock) — transcript inserted.")}>
-                      <Mic className="w-3.5 h-3.5 mr-1" /> Voice
+                    <Button
+                      size="sm"
+                      variant={speech.listening ? "destructive" : "ghost"}
+                      onClick={() => {
+                        if (!speech.supported) { toast.error("Voice input isn't supported in this browser. Try Chrome."); return; }
+                        speech.toggle();
+                      }}
+                    >
+                      <Mic className={`w-3.5 h-3.5 mr-1 ${speech.listening ? "animate-pulse" : ""}`} />
+                      {speech.listening ? "Stop dictation" : "Voice"}
                     </Button>
                     <label className="inline-flex">
                       <Button asChild size="sm" variant="ghost">
@@ -204,10 +258,23 @@ export default function TradeOS() {
                       <input type="file" multiple className="hidden" onChange={handleFile} />
                     </label>
                   </div>
+                  {speech.listening && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Listening… {speech.interim || "speak your requirement"}
+                    </p>
+                  )}
                   {attachments.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {attachments.map((a, i) => (
-                        <Badge key={i} variant="outline" className="text-xs">{a}</Badge>
+                        <Badge
+                          key={i}
+                          variant="outline"
+                          className="text-xs cursor-pointer"
+                          onClick={() => setAttachments((p) => p.filter((_, j) => j !== i))}
+                          title="Click to remove"
+                        >
+                          {a.name} · {a.kind === "image" ? "image read" : a.kind === "text" ? "text read" : "name only"}
+                        </Badge>
                       ))}
                     </div>
                   )}
@@ -352,7 +419,121 @@ export default function TradeOS() {
               </div>
             )}
           </TabsContent>
+
+          {/* Learning loop */}
+          <TabsContent value="learning" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="w-5 h-5 text-primary" /> Data & learning loop
+                    </CardTitle>
+                    <CardDescription>
+                      Every executed deal feeds matching, pricing, negotiation and risk models. These priors are passed into each new intent.
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setLearning(computePriors())}>Refresh</Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { clearOutcomes(); setLearning(computePriors()); toast.success("Learning store reset."); }}
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: "Executed deals", value: learning.deals.toString() },
+                    { label: "Cumulative value", value: `₹${learning.totalValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` },
+                    { label: "Avg. negotiated saving", value: `${learning.avgSavingsPct}%` },
+                    { label: "Avg. counterparty trust", value: `${learning.avgTrust}/100` },
+                  ].map((m) => (
+                    <div key={m.label} className="rounded-lg border p-3">
+                      <p className="text-[11px] text-muted-foreground">{m.label}</p>
+                      <p className="text-lg font-bold">{m.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">Matching accuracy</span>
+                        <span className="font-semibold">{learning.matchingAccuracyPct}%</span>
+                      </div>
+                      <Progress value={learning.matchingAccuracyPct} />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">Risk prediction F1</span>
+                        <span className="font-semibold">{learning.riskF1}</span>
+                      </div>
+                      <Progress value={learning.riskF1 * 100} />
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Price index <span className="font-semibold text-foreground">{learning.priceIndex}</span> ·
+                      avg {learning.avgRounds} negotiation rounds · avg ETA {learning.avgEtaDays} days
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <p className="text-xs font-semibold">What the system has learned</p>
+                    <ul className="space-y-1.5">
+                      {priorInsights(learning).map((i, idx) => (
+                        <li key={idx} className="text-xs text-muted-foreground flex gap-2">
+                          <Zap className="w-3 h-3 mt-0.5 shrink-0 text-secondary" />{i}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {learning.topSuppliers.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold mb-2">Supplier reputation graph — top repeat counterparties</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {learning.topSuppliers.map((s) => (
+                        <div key={s.id} className="rounded-lg border p-2.5 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{s.name}</p>
+                            <p className="text-[11px] text-muted-foreground">{s.deals} deal(s) · avg saving {s.avgSavingsPct}%</p>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] shrink-0">Trust {s.avgTrust}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {learning.byCategory.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold mb-2">Category priors</p>
+                    <div className="flex flex-wrap gap-2">
+                      {learning.byCategory.map((c) => (
+                        <Badge key={c.category} variant="secondary" className="text-[11px]">
+                          {c.category}: {c.deals} deal(s) · {c.avgSavingsPct}% saving · {c.avgEtaDays}d ETA
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {loadOutcomes().length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Run a deal to completion in the console — its outcome lands here and shapes the next deal.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
+
       </main>
       <Footer />
     </div>
