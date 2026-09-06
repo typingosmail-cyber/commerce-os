@@ -419,7 +419,121 @@ export default function TradeOS() {
               </div>
             )}
           </TabsContent>
+
+          {/* Learning loop */}
+          <TabsContent value="learning" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="w-5 h-5 text-primary" /> Data & learning loop
+                    </CardTitle>
+                    <CardDescription>
+                      Every executed deal feeds matching, pricing, negotiation and risk models. These priors are passed into each new intent.
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setLearning(computePriors())}>Refresh</Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { clearOutcomes(); setLearning(computePriors()); toast.success("Learning store reset."); }}
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: "Executed deals", value: learning.deals.toString() },
+                    { label: "Cumulative value", value: `₹${learning.totalValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` },
+                    { label: "Avg. negotiated saving", value: `${learning.avgSavingsPct}%` },
+                    { label: "Avg. counterparty trust", value: `${learning.avgTrust}/100` },
+                  ].map((m) => (
+                    <div key={m.label} className="rounded-lg border p-3">
+                      <p className="text-[11px] text-muted-foreground">{m.label}</p>
+                      <p className="text-lg font-bold">{m.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">Matching accuracy</span>
+                        <span className="font-semibold">{learning.matchingAccuracyPct}%</span>
+                      </div>
+                      <Progress value={learning.matchingAccuracyPct} />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">Risk prediction F1</span>
+                        <span className="font-semibold">{learning.riskF1}</span>
+                      </div>
+                      <Progress value={learning.riskF1 * 100} />
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Price index <span className="font-semibold text-foreground">{learning.priceIndex}</span> ·
+                      avg {learning.avgRounds} negotiation rounds · avg ETA {learning.avgEtaDays} days
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <p className="text-xs font-semibold">What the system has learned</p>
+                    <ul className="space-y-1.5">
+                      {priorInsights(learning).map((i, idx) => (
+                        <li key={idx} className="text-xs text-muted-foreground flex gap-2">
+                          <Zap className="w-3 h-3 mt-0.5 shrink-0 text-secondary" />{i}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {learning.topSuppliers.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold mb-2">Supplier reputation graph — top repeat counterparties</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {learning.topSuppliers.map((s) => (
+                        <div key={s.id} className="rounded-lg border p-2.5 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{s.name}</p>
+                            <p className="text-[11px] text-muted-foreground">{s.deals} deal(s) · avg saving {s.avgSavingsPct}%</p>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] shrink-0">Trust {s.avgTrust}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {learning.byCategory.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold mb-2">Category priors</p>
+                    <div className="flex flex-wrap gap-2">
+                      {learning.byCategory.map((c) => (
+                        <Badge key={c.category} variant="secondary" className="text-[11px]">
+                          {c.category}: {c.deals} deal(s) · {c.avgSavingsPct}% saving · {c.avgEtaDays}d ETA
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {loadOutcomes().length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Run a deal to completion in the console — its outcome lands here and shapes the next deal.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
+
       </main>
       <Footer />
     </div>
