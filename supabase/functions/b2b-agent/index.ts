@@ -61,7 +61,8 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const mode: string = body.mode ?? "copilot";
     const stream: boolean = body.stream ?? mode === "copilot";
-    const system = SYSTEM_PROMPTS[mode] ?? SYSTEM_PROMPTS.copilot;
+    const base = SYSTEM_PROMPTS[mode] ?? SYSTEM_PROMPTS.copilot;
+    const system = `${base}\nToday's date is ${new Date().toISOString().slice(0, 10)}; all dates you output must be in the future relative to it.`;
     const messages = Array.isArray(body.messages) && body.messages.length
       ? body.messages
       : [{ role: "user", content: String(body.prompt ?? "") }];
