@@ -3,6 +3,8 @@
 // Implements all 7 vision steps: Intent → Multi-Agent → Trust → Match/Simulate
 // → Transaction → Logistics → Learning Loop.
 
+import { recordDealOutcome, computePriors } from "./trade-learning";
+
 const STORAGE_KEY = "vyapar_trade_os_v1";
 
 // ---------------------------------------------------------------------------
