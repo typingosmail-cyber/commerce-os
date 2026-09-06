@@ -17,14 +17,38 @@ export async function generateText(mode: string, prompt: string): Promise<string
   return (data.text as string) ?? "";
 }
 
-/** JSON generation (structured intent extraction). */
-export async function generateJSON<T = unknown>(mode: string, prompt: string): Promise<T> {
-  const raw = await generateText(mode, prompt);
+export type ContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+/** One-shot generation with multimodal parts (text + images/documents as data URLs). */
+export async function generateTextParts(mode: string, parts: ContentPart[]): Promise<string> {
+  const res = await fetch(FN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON}` },
+    body: JSON.stringify({ mode, stream: false, messages: [{ role: "user", content: parts }] }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "AI request failed");
+  return (data.text as string) ?? "";
+}
+
+function parseJSONBlock<T>(raw: string): T {
   const cleaned = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
   if (start === -1 || end === -1) throw new Error("AI returned no JSON.");
   return JSON.parse(cleaned.slice(start, end + 1)) as T;
+}
+
+/** JSON generation from multimodal parts (BOM images, spec sheets). */
+export async function generateJSONParts<T = unknown>(mode: string, parts: ContentPart[]): Promise<T> {
+  return parseJSONBlock<T>(await generateTextParts(mode, parts));
+}
+
+/** JSON generation (structured intent extraction). */
+export async function generateJSON<T = unknown>(mode: string, prompt: string): Promise<T> {
+  return parseJSONBlock<T>(await generateText(mode, prompt));
 }
 
 /** Streaming copilot chat. Calls onDelta with incremental text. */
