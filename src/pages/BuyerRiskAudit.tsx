@@ -49,7 +49,7 @@ const ACTION_META = {
 } as const;
 
 const STATUS_META: Record<RiskLimitEvent["status"], { label: string; tone: string }> = {
-  active: { label: "Still applied", tone: "bg-destructive/10 text-destructive border-destructive/30" },
+  active: { label: "Currently in force", tone: "bg-destructive/10 text-destructive border-destructive/30" },
   restored: { label: "Later restored", tone: "bg-success/10 text-success border-success/30" },
   expired: { label: "Cleared", tone: "bg-success/10 text-success border-success/30" },
   under_appeal: { label: "Under appeal", tone: "bg-yellow-500/15 text-yellow-700 border-yellow-500/30" },
@@ -280,7 +280,7 @@ export default function BuyerRiskAudit() {
                   <Collapsible open={isOpen} onOpenChange={(v) => setOpen((p) => ({ ...p, [e.id]: v }))}>
                     <CardContent className="pt-5">
                       <div className="flex items-start gap-3">
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${e.delta < 0 ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"}`}>
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${e.delta < 0 ? "bg-destructive/10 text-destructive" : e.delta > 0 ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
                           <M.icon className="w-4.5 h-4.5" />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -302,13 +302,22 @@ export default function BuyerRiskAudit() {
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className={`text-lg font-bold ${e.delta < 0 ? "text-destructive" : "text-success"}`}>
-                            {e.delta < 0 ? <ArrowDownRight className="w-4 h-4 inline mr-0.5" /> : <ArrowUpRight className="w-4 h-4 inline mr-0.5" />}
-                            {e.delta < 0 ? "−" : "+"}{fmt(Math.abs(e.delta))}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {fmt(e.limitBefore)} → {fmt(e.limitAfter)}
-                          </p>
+                          {e.delta === 0 ? (
+                            <>
+                              <p className="text-sm font-semibold text-muted-foreground">No limit change</p>
+                              <p className="text-[11px] text-muted-foreground">Watch-listed only</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className={`text-lg font-bold ${e.delta < 0 ? "text-destructive" : "text-success"}`}>
+                                {e.delta < 0 ? <ArrowDownRight className="w-4 h-4 inline mr-0.5" /> : <ArrowUpRight className="w-4 h-4 inline mr-0.5" />}
+                                {e.delta < 0 ? "−" : "+"}{fmt(Math.abs(e.delta))}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {fmt(e.limitBefore)} → {fmt(e.limitAfter)}
+                              </p>
+                            </>
+                          )}
                         </div>
                       </div>
 

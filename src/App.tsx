@@ -25,6 +25,7 @@ import OrderTracking from "./pages/OrderTracking";
 import SupplierAnalytics from "./pages/SupplierAnalytics";
 import SupplierVerification from "./pages/SupplierVerification";
 import BuyerCredit from "./pages/BuyerCredit";
+import BuyerRiskAudit from "./pages/BuyerRiskAudit";
 import FraudDetection from "./pages/FraudDetection";
 import AdminReviewer from "./pages/AdminReviewer";
 import TradeOS from "./pages/TradeOS";
@@ -67,6 +68,7 @@ const App = () => (
             <Route path="/supplier/:id" element={<SupplierStorefront />} />
             <Route path="/buyer/dashboard" element={<BuyerDashboard />} />
             <Route path="/buyer/credit" element={<BuyerCredit />} />
+            <Route path="/buyer/risk-audit" element={<BuyerRiskAudit />} />
             <Route path="/admin/fraud" element={<FraudDetection />} />
             <Route path="/admin/reviewer" element={<AdminReviewer />} />
             <Route path="/trade-os" element={<TradeOS />} />
