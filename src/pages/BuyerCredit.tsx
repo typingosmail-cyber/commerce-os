@@ -554,8 +554,24 @@ export default function BuyerCredit() {
 
           {/* Risk signals */}
           <TabsContent value="risk" className="mt-4 space-y-4">
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-5 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold flex items-center gap-2">
+                    <ShieldAlert className="h-4 w-4 text-primary" /> Risk audit trail
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    See every limit change caused by a fraud or default-risk rule, with the exact signals and records behind it.
+                  </p>
+                </div>
+                <Button asChild>
+                  <RouterLink to="/buyer/risk-audit">Open audit trail <ArrowUpRight className="h-4 w-4 ml-1" /></RouterLink>
+                </Button>
+              </CardContent>
+            </Card>
             <RiskPanel risk={risk} approvedLimit={profile.approvedLimit} />
           </TabsContent>
+
 
           {/* Grow limit */}
           <TabsContent value="grow" className="mt-4 space-y-4">
