@@ -855,11 +855,67 @@ function escalate(a: BuyerRiskAction, b: BuyerRiskAction): BuyerRiskAction {
   return ACTION_RANK[a] >= ACTION_RANK[b] ? a : b;
 }
 
+/**
+ * Signals sourced from external credit bureaus, GST compliance feeds and
+ * fraud consortium APIs. Optional — passed in when a bureau pull succeeded.
+ */
+export interface BureauMetrics {
+  /** Commercial bureau score, 300-900 (higher = safer). */
+  bureauCommercialScore: number;
+  /** Worst DPD reported by any lender in the last 12 months. */
+  bureauMaxDpd12m: number;
+  /** Trade lines reported 90+ days past due. */
+  bureauAccounts90Plus: number;
+  /** Amount written off by other lenders (INR). */
+  bureauWrittenOffAmount: number;
+  /** Suit-filed / wilful defaulter records. */
+  bureauSuitFiled: number;
+  /** Credit enquiries across lenders in last 30 days (loan stacking). */
+  bureauEnquiries30d: number;
+  /** Utilisation of total sanctioned limits across lenders, %. */
+  bureauUtilisationPct: number;
+  /** Cheque / mandate bounces in last 6 months. */
+  bureauChequeBounces6m: number;
+  /** Missed GST returns in the last 12 months. */
+  gstFilingDefaults12m: number;
+  /** GSTIN cancelled or suspended on the government feed. */
+  gstRegistrationInactive: number;
+  /** Hits on the shared fraud consortium database. */
+  fraudConsortiumHits: number;
+  /** Synthetic-identity likelihood, 0-100. */
+  syntheticIdentityScore: number;
+  /** Sanctions / internal watchlist match. */
+  watchlistHit: number;
+  /** Directors linked to other defaulting entities. */
+  linkedDefaulterEntities: number;
+  /** Adverse media mentions in last 12 months. */
+  negativeMediaMentions: number;
+}
+
+export const BUREAU_METRIC_LABEL: Record<keyof BureauMetrics, string> = {
+  bureauCommercialScore: "Bureau commercial score",
+  bureauMaxDpd12m: "Bureau worst DPD (12m)",
+  bureauAccounts90Plus: "Trade lines 90+ DPD",
+  bureauWrittenOffAmount: "Written off by other lenders",
+  bureauSuitFiled: "Suit-filed / wilful defaulter records",
+  bureauEnquiries30d: "Credit enquiries (30d)",
+  bureauUtilisationPct: "Utilisation across lenders",
+  bureauChequeBounces6m: "Cheque / mandate bounces (6m)",
+  gstFilingDefaults12m: "GST filing defaults (12m)",
+  gstRegistrationInactive: "GSTIN inactive / suspended",
+  fraudConsortiumHits: "Fraud consortium hits",
+  syntheticIdentityScore: "Synthetic identity score",
+  watchlistHit: "Sanctions / watchlist match",
+  linkedDefaulterEntities: "Linked defaulter entities",
+  negativeMediaMentions: "Adverse media mentions",
+};
+
 /** Pure rule engine — given metrics + current limit, emit signals & final action. */
 export function evaluateBuyerRisk(
   buyerId: string,
   metrics: BuyerRiskMetrics,
   approvedLimit: number,
+  bureau?: BureauMetrics,
 ): BuyerRiskAssessment {
   const signals: BuyerRiskSignal[] = [];
   const now = new Date().toISOString();
@@ -1071,6 +1127,175 @@ export function evaluateBuyerRisk(
       reductionInr: 0,
       action: "monitor",
     });
+  }
+
+  // ---- External bureau / fraud consortium rules (BR-060+) ----
+  if (bureau) {
+    if (bureau.bureauSuitFiled >= 1 || bureau.watchlistHit >= 1) {
+      add({
+        id: "BUR-SUIT", ruleId: "BR-060",
+        category: "identity",
+        label: "Bureau suit-filed or watchlist match",
+        detail: bureau.watchlistHit >= 1
+          ? "Entity or its directors matched a sanctions / internal watchlist."
+          : `${bureau.bureauSuitFiled} suit-filed / wilful defaulter record(s) on the bureau file.`,
+        severity: "critical",
+        reductionInr: approvedLimit,
+        action: "block",
+      });
+    }
+
+    if (bureau.bureauCommercialScore > 0 && bureau.bureauCommercialScore < 620) {
+      add({
+        id: "BUR-SCORE-LOW", ruleId: "BR-061",
+        category: "repayment",
+        label: "Low bureau commercial score",
+        detail: `Commercial bureau score ${bureau.bureauCommercialScore} is below the 620 cut-off.`,
+        severity: "high",
+        reductionInr: Math.round(approvedLimit * 0.4),
+        action: "reduce_limit",
+      });
+    } else if (bureau.bureauCommercialScore >= 620 && bureau.bureauCommercialScore < 700) {
+      add({
+        id: "BUR-SCORE-MID", ruleId: "BR-062",
+        category: "repayment",
+        label: "Below-par bureau score",
+        detail: `Commercial bureau score ${bureau.bureauCommercialScore} (700 is the comfort threshold).`,
+        severity: "medium",
+        reductionInr: Math.round(approvedLimit * 0.15),
+        action: "reduce_limit",
+      });
+    }
+
+    if (bureau.bureauWrittenOffAmount > 0 || bureau.bureauAccounts90Plus >= 1) {
+      add({
+        id: "BUR-WRITEOFF", ruleId: "BR-063",
+        category: "repayment",
+        label: "Default reported by other lenders",
+        detail: bureau.bureauWrittenOffAmount > 0
+          ? `₹${bureau.bureauWrittenOffAmount.toLocaleString("en-IN")} written off by other lenders.`
+          : `${bureau.bureauAccounts90Plus} trade line(s) reported 90+ days past due.`,
+        severity: "critical",
+        reductionInr: Math.round(approvedLimit * 0.6),
+        action: "freeze_new",
+      });
+    } else if (bureau.bureauMaxDpd12m >= 30) {
+      add({
+        id: "BUR-DPD", ruleId: "BR-064",
+        category: "repayment",
+        label: "Bureau DPD on other credit lines",
+        detail: `Worst DPD of ${bureau.bureauMaxDpd12m} days reported by another lender in 12 months.`,
+        severity: "high",
+        reductionInr: Math.round(approvedLimit * 0.25),
+        action: "reduce_limit",
+      });
+    }
+
+    if (bureau.bureauEnquiries30d >= 5) {
+      add({
+        id: "BUR-STACKING", ruleId: "BR-065",
+        category: "velocity",
+        label: "Credit stacking across lenders",
+        detail: `${bureau.bureauEnquiries30d} credit enquiries in 30 days across lenders.`,
+        severity: "medium",
+        reductionInr: Math.round(approvedLimit * 0.15),
+        action: "reduce_limit",
+      });
+    }
+
+    if (bureau.bureauChequeBounces6m >= 2) {
+      add({
+        id: "BUR-BOUNCE", ruleId: "BR-066",
+        category: "repayment",
+        label: "Repeated cheque / mandate bounces",
+        detail: `${bureau.bureauChequeBounces6m} bounces reported in the last 6 months.`,
+        severity: "high",
+        reductionInr: Math.round(approvedLimit * 0.2),
+        action: "reduce_limit",
+      });
+    }
+
+    if (bureau.gstRegistrationInactive >= 1) {
+      add({
+        id: "BUR-GST-INACTIVE", ruleId: "BR-067",
+        category: "identity",
+        label: "GSTIN cancelled or suspended",
+        detail: "Government GST feed reports the registration as inactive.",
+        severity: "critical",
+        reductionInr: approvedLimit,
+        action: "block",
+      });
+    } else if (bureau.gstFilingDefaults12m >= 3) {
+      add({
+        id: "BUR-GST-DEFAULTS", ruleId: "BR-068",
+        category: "identity",
+        label: "Missed GST filings",
+        detail: `${bureau.gstFilingDefaults12m} GST returns missed in the last 12 months.`,
+        severity: "medium",
+        reductionInr: Math.round(approvedLimit * 0.15),
+        action: "reduce_limit",
+      });
+    }
+
+    if (bureau.fraudConsortiumHits >= 1) {
+      add({
+        id: "BUR-CONSORTIUM", ruleId: "BR-070",
+        category: "behavior",
+        label: "Fraud consortium hit",
+        detail: `${bureau.fraudConsortiumHits} match(es) in the shared lender fraud database.`,
+        severity: "critical",
+        reductionInr: Math.round(approvedLimit * 0.8),
+        action: "freeze_new",
+      });
+    }
+
+    if (bureau.syntheticIdentityScore >= 70) {
+      add({
+        id: "BUR-SYNTH-ID", ruleId: "BR-071",
+        category: "identity",
+        label: "Possible synthetic identity",
+        detail: `Synthetic-identity score ${bureau.syntheticIdentityScore}/100 from the fraud API.`,
+        severity: "high",
+        reductionInr: Math.round(approvedLimit * 0.3),
+        action: "freeze_new",
+      });
+    }
+
+    if (bureau.linkedDefaulterEntities >= 1) {
+      add({
+        id: "BUR-LINKED", ruleId: "BR-072",
+        category: "device",
+        label: "Directors linked to defaulting entities",
+        detail: `${bureau.linkedDefaulterEntities} related entity(ies) with reported defaults.`,
+        severity: "high",
+        reductionInr: Math.round(approvedLimit * 0.25),
+        action: "reduce_limit",
+      });
+    }
+
+    if (bureau.negativeMediaMentions >= 2) {
+      add({
+        id: "BUR-MEDIA", ruleId: "BR-073",
+        category: "behavior",
+        label: "Adverse media coverage",
+        detail: `${bureau.negativeMediaMentions} adverse media mentions in the last 12 months.`,
+        severity: "low",
+        reductionInr: 0,
+        action: "monitor",
+      });
+    }
+
+    if (bureau.bureauUtilisationPct >= 90) {
+      add({
+        id: "BUR-UTIL", ruleId: "BR-074",
+        category: "exposure",
+        label: "Fully drawn across lenders",
+        detail: `${bureau.bureauUtilisationPct}% of all sanctioned limits already drawn.`,
+        severity: "medium",
+        reductionInr: Math.round(approvedLimit * 0.1),
+        action: "reduce_limit",
+      });
+    }
   }
 
   // ---- Aggregate ----
