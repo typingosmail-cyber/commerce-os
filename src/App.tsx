@@ -72,6 +72,7 @@ const App = () => (
             <Route path="/buyer/risk-audit" element={<BuyerRiskAudit />} />
             <Route path="/admin/fraud" element={<FraudDetection />} />
             <Route path="/admin/reviewer" element={<AdminReviewer />} />
+            <Route path="/admin/risk-rules" element={<AdminRiskRules />} />
             <Route path="/trade-os" element={<TradeOS />} />
             <Route path="/trade-os/:id" element={<TradeOSConsole />} />
             <Route path="/messages" element={<Messages />} />
