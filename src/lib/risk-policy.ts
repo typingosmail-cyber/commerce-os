@@ -358,7 +358,7 @@ export interface PolicyDiffRow {
 
 export function diffEvaluations(before: PolicyEvaluation, after: PolicyEvaluation): PolicyDiffRow[] {
   const ids = [...new Set([...before.firedRuleIds, ...after.firedRuleIds])];
-  return ids.map((id) => {
+  return ids.map((id): PolicyDiffRow => {
     const b = before.signals.find((s) => s.ruleId === id);
     const a = after.signals.find((s) => s.ruleId === id);
     return {
