@@ -28,6 +28,7 @@ import BuyerCredit from "./pages/BuyerCredit";
 import BuyerRiskAudit from "./pages/BuyerRiskAudit";
 import FraudDetection from "./pages/FraudDetection";
 import AdminReviewer from "./pages/AdminReviewer";
+import AdminRiskRules from "./pages/AdminRiskRules";
 import TradeOS from "./pages/TradeOS";
 import TradeOSConsole from "./pages/TradeOSConsole";
 import NotFound from "./pages/NotFound";
