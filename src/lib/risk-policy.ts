@@ -1,4 +1,5 @@
 import type {
+  BureauMetrics,
   BuyerRiskAction,
   BuyerRiskAssessment,
   BuyerRiskCategory,
@@ -7,8 +8,11 @@ import type {
   BuyerRiskSignal,
 } from "./bnpl";
 
+/** Buyer metrics plus optional external bureau / fraud signals. */
+export type ExtendedRiskMetrics = BuyerRiskMetrics & Partial<BureauMetrics>;
+
 /** Metric keys the rule engine can threshold on. */
-export type PolicyMetricKey = keyof BuyerRiskMetrics;
+export type PolicyMetricKey = keyof ExtendedRiskMetrics;
 
 export type ThresholdMode = "absolute" | "pctOfLimit";
 
@@ -21,7 +25,7 @@ export interface PolicyRule {
   label: string;
   metric: PolicyMetricKey;
   /** Comparison against the threshold. */
-  op: ">=" | ">" | "==";
+  op: ">=" | ">" | "<" | "==";
   threshold: number;
   thresholdMode: ThresholdMode;
   unit: "count" | "days" | "inr" | "percent" | "flag";
@@ -35,6 +39,8 @@ export interface PolicyRule {
   enabled: boolean;
   /** Fires only when this other rule did NOT fire (tiered rules). */
   suppressedBy?: string;
+  /** Needs an external bureau / fraud pull — skipped when no report is loaded. */
+  requiresBureau?: boolean;
   /** Template — {v} = observed value, {t} = threshold. */
   detail: string;
 }
@@ -81,6 +87,21 @@ export const METRIC_LABEL: Record<PolicyMetricKey, string> = {
   refundedThenRedrawCount: "Refund-then-redraw cycles",
   exposureToHighRiskSuppliers: "Exposure to flagged suppliers",
   utilizationPct: "Limit utilisation",
+  bureauCommercialScore: "Bureau commercial score",
+  bureauMaxDpd12m: "Bureau worst DPD (12m)",
+  bureauAccounts90Plus: "Trade lines 90+ DPD",
+  bureauWrittenOffAmount: "Written off by other lenders",
+  bureauSuitFiled: "Suit-filed / wilful defaulter records",
+  bureauEnquiries30d: "Credit enquiries (30d, all lenders)",
+  bureauUtilisationPct: "Utilisation across lenders",
+  bureauChequeBounces6m: "Cheque / mandate bounces (6m)",
+  gstFilingDefaults12m: "GST filing defaults (12m)",
+  gstRegistrationInactive: "GSTIN inactive / suspended",
+  fraudConsortiumHits: "Fraud consortium hits",
+  syntheticIdentityScore: "Synthetic identity score",
+  watchlistHit: "Sanctions / watchlist match",
+  linkedDefaulterEntities: "Linked defaulter entities",
+  negativeMediaMentions: "Adverse media mentions",
 };
 
 export const METRIC_INPUT: Record<PolicyMetricKey, { min: number; max: number; step: number; unit: PolicyRule["unit"] }> = {
@@ -99,6 +120,21 @@ export const METRIC_INPUT: Record<PolicyMetricKey, { min: number; max: number; s
   refundedThenRedrawCount: { min: 0, max: 10, step: 1, unit: "count" },
   exposureToHighRiskSuppliers: { min: 0, max: 3_000_000, step: 25_000, unit: "inr" },
   utilizationPct: { min: 0, max: 100, step: 1, unit: "percent" },
+  bureauCommercialScore: { min: 300, max: 900, step: 5, unit: "count" },
+  bureauMaxDpd12m: { min: 0, max: 180, step: 5, unit: "days" },
+  bureauAccounts90Plus: { min: 0, max: 10, step: 1, unit: "count" },
+  bureauWrittenOffAmount: { min: 0, max: 2_000_000, step: 25_000, unit: "inr" },
+  bureauSuitFiled: { min: 0, max: 5, step: 1, unit: "count" },
+  bureauEnquiries30d: { min: 0, max: 20, step: 1, unit: "count" },
+  bureauUtilisationPct: { min: 0, max: 100, step: 1, unit: "percent" },
+  bureauChequeBounces6m: { min: 0, max: 10, step: 1, unit: "count" },
+  gstFilingDefaults12m: { min: 0, max: 12, step: 1, unit: "count" },
+  gstRegistrationInactive: { min: 0, max: 1, step: 1, unit: "flag" },
+  fraudConsortiumHits: { min: 0, max: 5, step: 1, unit: "count" },
+  syntheticIdentityScore: { min: 0, max: 100, step: 5, unit: "count" },
+  watchlistHit: { min: 0, max: 1, step: 1, unit: "flag" },
+  linkedDefaulterEntities: { min: 0, max: 5, step: 1, unit: "count" },
+  negativeMediaMentions: { min: 0, max: 10, step: 1, unit: "count" },
 };
 
 /** Mirrors the hardcoded defaults in evaluateBuyerRisk. */
@@ -208,6 +244,106 @@ export const DEFAULT_RULES: PolicyRule[] = [
     min: 50, max: 100, step: 1, reductionPct: 0, severity: "low", action: "monitor", enabled: true,
     detail: "{v}% of approved limit currently drawn (threshold {t}%).",
   },
+
+  // ---- External bureau / fraud consortium rules ----
+  {
+    ruleId: "BR-060", signalId: "BUR-SUIT", category: "identity", label: "Suit-filed / watchlist match",
+    metric: "bureauSuitFiled", op: ">=", threshold: 1, thresholdMode: "absolute", unit: "count",
+    min: 1, max: 5, step: 1, reductionPct: 100, severity: "critical", action: "block", enabled: true,
+    requiresBureau: true,
+    detail: "{v} suit-filed / wilful defaulter record(s) on the bureau file (threshold {t}).",
+  },
+  {
+    ruleId: "BR-061", signalId: "BUR-SCORE-LOW", category: "repayment", label: "Low bureau commercial score",
+    metric: "bureauCommercialScore", op: "<", threshold: 620, thresholdMode: "absolute", unit: "count",
+    min: 300, max: 900, step: 10, reductionPct: 40, severity: "high", action: "reduce_limit", enabled: true,
+    requiresBureau: true,
+    detail: "Commercial bureau score {v} is below the {t} cut-off.",
+  },
+  {
+    ruleId: "BR-062", signalId: "BUR-SCORE-MID", category: "repayment", label: "Below-par bureau score",
+    metric: "bureauCommercialScore", op: "<", threshold: 700, thresholdMode: "absolute", unit: "count",
+    min: 300, max: 900, step: 10, reductionPct: 15, severity: "medium", action: "reduce_limit", enabled: true,
+    requiresBureau: true, suppressedBy: "BR-061",
+    detail: "Commercial bureau score {v} is under the {t} comfort threshold.",
+  },
+  {
+    ruleId: "BR-063", signalId: "BUR-WRITEOFF", category: "repayment", label: "Default reported by other lenders",
+    metric: "bureauWrittenOffAmount", op: ">", threshold: 0, thresholdMode: "absolute", unit: "inr",
+    min: 0, max: 2_000_000, step: 25_000, reductionPct: 60, severity: "critical", action: "freeze_new", enabled: true,
+    requiresBureau: true,
+    detail: "₹{v} written off by other lenders (threshold ₹{t}).",
+  },
+  {
+    ruleId: "BR-064", signalId: "BUR-DPD", category: "repayment", label: "Bureau DPD on other credit lines",
+    metric: "bureauMaxDpd12m", op: ">=", threshold: 30, thresholdMode: "absolute", unit: "days",
+    min: 5, max: 180, step: 5, reductionPct: 25, severity: "high", action: "reduce_limit", enabled: true,
+    requiresBureau: true, suppressedBy: "BR-063",
+    detail: "Worst DPD of {v} days reported by another lender (threshold {t}).",
+  },
+  {
+    ruleId: "BR-065", signalId: "BUR-STACKING", category: "velocity", label: "Credit stacking across lenders",
+    metric: "bureauEnquiries30d", op: ">=", threshold: 5, thresholdMode: "absolute", unit: "count",
+    min: 1, max: 20, step: 1, reductionPct: 15, severity: "medium", action: "reduce_limit", enabled: true,
+    requiresBureau: true,
+    detail: "{v} credit enquiries in 30 days across lenders (threshold {t}).",
+  },
+  {
+    ruleId: "BR-066", signalId: "BUR-BOUNCE", category: "repayment", label: "Repeated cheque / mandate bounces",
+    metric: "bureauChequeBounces6m", op: ">=", threshold: 2, thresholdMode: "absolute", unit: "count",
+    min: 1, max: 10, step: 1, reductionPct: 20, severity: "high", action: "reduce_limit", enabled: true,
+    requiresBureau: true,
+    detail: "{v} bounces reported in the last 6 months (threshold {t}).",
+  },
+  {
+    ruleId: "BR-067", signalId: "BUR-GST-INACTIVE", category: "identity", label: "GSTIN cancelled or suspended",
+    metric: "gstRegistrationInactive", op: "==", threshold: 1, thresholdMode: "absolute", unit: "flag",
+    min: 1, max: 1, step: 1, reductionPct: 100, severity: "critical", action: "block", enabled: true,
+    requiresBureau: true,
+    detail: "Government GST feed reports the registration as inactive.",
+  },
+  {
+    ruleId: "BR-068", signalId: "BUR-GST-DEFAULTS", category: "identity", label: "Missed GST filings",
+    metric: "gstFilingDefaults12m", op: ">=", threshold: 3, thresholdMode: "absolute", unit: "count",
+    min: 1, max: 12, step: 1, reductionPct: 15, severity: "medium", action: "reduce_limit", enabled: true,
+    requiresBureau: true, suppressedBy: "BR-067",
+    detail: "{v} GST returns missed in the last 12 months (threshold {t}).",
+  },
+  {
+    ruleId: "BR-070", signalId: "BUR-CONSORTIUM", category: "behavior", label: "Fraud consortium hit",
+    metric: "fraudConsortiumHits", op: ">=", threshold: 1, thresholdMode: "absolute", unit: "count",
+    min: 1, max: 5, step: 1, reductionPct: 80, severity: "critical", action: "freeze_new", enabled: true,
+    requiresBureau: true,
+    detail: "{v} match(es) in the shared lender fraud database (threshold {t}).",
+  },
+  {
+    ruleId: "BR-071", signalId: "BUR-SYNTH-ID", category: "identity", label: "Possible synthetic identity",
+    metric: "syntheticIdentityScore", op: ">=", threshold: 70, thresholdMode: "absolute", unit: "count",
+    min: 20, max: 100, step: 5, reductionPct: 30, severity: "high", action: "freeze_new", enabled: true,
+    requiresBureau: true,
+    detail: "Synthetic-identity score {v}/100 from the fraud API (threshold {t}).",
+  },
+  {
+    ruleId: "BR-072", signalId: "BUR-LINKED", category: "device", label: "Directors linked to defaulting entities",
+    metric: "linkedDefaulterEntities", op: ">=", threshold: 1, thresholdMode: "absolute", unit: "count",
+    min: 1, max: 5, step: 1, reductionPct: 25, severity: "high", action: "reduce_limit", enabled: true,
+    requiresBureau: true,
+    detail: "{v} related entity(ies) with reported defaults (threshold {t}).",
+  },
+  {
+    ruleId: "BR-073", signalId: "BUR-MEDIA", category: "behavior", label: "Adverse media coverage",
+    metric: "negativeMediaMentions", op: ">=", threshold: 2, thresholdMode: "absolute", unit: "count",
+    min: 1, max: 10, step: 1, reductionPct: 0, severity: "low", action: "monitor", enabled: true,
+    requiresBureau: true,
+    detail: "{v} adverse media mentions in the last 12 months (threshold {t}).",
+  },
+  {
+    ruleId: "BR-074", signalId: "BUR-UTIL", category: "exposure", label: "Fully drawn across lenders",
+    metric: "bureauUtilisationPct", op: ">=", threshold: 90, thresholdMode: "absolute", unit: "percent",
+    min: 50, max: 100, step: 1, reductionPct: 10, severity: "medium", action: "reduce_limit", enabled: true,
+    requiresBureau: true,
+    detail: "{v}% of all sanctioned limits already drawn (threshold {t}%).",
+  },
 ];
 
 const KEY = "vyapar_risk_policy_v1";
@@ -247,14 +383,16 @@ export function resetPolicy(): RiskPolicy {
   return defaultPolicy();
 }
 
-export function metricValue(metrics: BuyerRiskMetrics, key: PolicyMetricKey): number {
+export function metricValue(metrics: ExtendedRiskMetrics, key: PolicyMetricKey): number | undefined {
   const v = metrics[key];
+  if (v === undefined) return undefined;
   return typeof v === "boolean" ? (v ? 1 : 0) : v;
 }
 
 function compare(v: number, op: PolicyRule["op"], t: number) {
   if (op === ">=") return v >= t;
   if (op === ">") return v > t;
+  if (op === "<") return v < t;
   return v === t;
 }
 
@@ -268,13 +406,15 @@ const SEV_WEIGHT: Record<BuyerRiskSeverity, number> = { info: 1, low: 3, medium:
 export interface PolicyEvaluation extends BuyerRiskAssessment {
   /** Rules evaluated but not fired, with the gap to their threshold. */
   nearMisses: { ruleId: string; label: string; observed: number; threshold: number; gap: number }[];
+  /** Rules skipped because the underlying signal has not been pulled yet. */
+  skippedNoData: { ruleId: string; label: string; metric: PolicyMetricKey }[];
   firedRuleIds: string[];
 }
 
 /** Evaluate a buyer against an editable policy (same maths as evaluateBuyerRisk). */
 export function evaluateWithPolicy(
   buyerId: string,
-  metrics: BuyerRiskMetrics,
+  metrics: ExtendedRiskMetrics,
   approvedLimit: number,
   policy: RiskPolicy,
 ): PolicyEvaluation {
@@ -282,10 +422,17 @@ export function evaluateWithPolicy(
   const signals: BuyerRiskSignal[] = [];
   const fired = new Set<string>();
   const nearMisses: PolicyEvaluation["nearMisses"] = [];
+  const skippedNoData: PolicyEvaluation["skippedNoData"] = [];
 
   for (const rule of policy.rules) {
     if (!rule.enabled) continue;
-    const observed = metricValue(metrics, rule.metric);
+    const raw = metricValue(metrics, rule.metric);
+    // Bureau rules stay dormant until an external report has been pulled.
+    if (raw === undefined) {
+      skippedNoData.push({ ruleId: rule.ruleId, label: rule.label, metric: rule.metric });
+      continue;
+    }
+    const observed = raw;
     const threshold = effectiveThreshold(rule, approvedLimit);
     const hit = compare(observed, rule.op, threshold);
     const suppressed = rule.suppressedBy ? fired.has(rule.suppressedBy) : false;
@@ -343,6 +490,7 @@ export function evaluateWithPolicy(
     buyerId, signals, riskScore, action, totalReductionInr, effectiveLimit,
     rationale, evaluatedAt: now,
     nearMisses: nearMisses.sort((a, b) => a.gap - b.gap).slice(0, 6),
+    skippedNoData,
     firedRuleIds: [...fired],
   };
 }
