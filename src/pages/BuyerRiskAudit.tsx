@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
+import { cachedReport, toBureauMetrics } from "@/lib/bureau-signals";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +61,15 @@ export default function BuyerRiskAudit() {
   const { user } = useAuth();
   const profile = useMemo(() => mockProfile(user?.id ?? "demo", 720), [user]);
   const assessment = useMemo(
-    () => evaluateBuyerRisk(profile.buyerId, mockBuyerRiskMetrics(profile), profile.approvedLimit),
+    () => {
+      const report = cachedReport(profile.buyerId);
+      return evaluateBuyerRisk(
+        profile.buyerId,
+        mockBuyerRiskMetrics(profile),
+        profile.approvedLimit,
+        report ? toBureauMetrics(report) : undefined,
+      );
+    },
     [profile],
   );
   const allEvents = useMemo(() => generateRiskAuditTrail(profile, assessment), [profile, assessment]);
