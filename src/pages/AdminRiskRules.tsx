@@ -14,8 +14,13 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  ArrowDown, ArrowUp, RotateCcw, Save, ShieldAlert, Sliders, TrendingDown, Users,
+  ArrowDown, ArrowUp, Database, Loader2, RefreshCw, RotateCcw, Save, ShieldAlert,
+  Sliders, TrendingDown, Users,
 } from "lucide-react";
+import {
+  SCORE_BAND_TONE, bureauHighlights, cachedReport, fetchBureauReport, toBureauMetrics,
+  type BureauReport,
+} from "@/lib/bureau-signals";
 import {
   mockProfile, mockBuyerRiskMetrics, buyerRiskTone,
   type BuyerRiskAction, type BuyerRiskMetrics, type BuyerRiskSeverity,
@@ -24,7 +29,7 @@ import {
   ACTION_LABEL, ACTION_ORDER, CATEGORY_LABEL, METRIC_INPUT, METRIC_LABEL,
   SEVERITY_ORDER, SIM_BUYERS, diffEvaluations, evaluateWithPolicy, loadPolicy,
   metricValue, resetPolicy, savePolicy,
-  type PolicyMetricKey, type PolicyRule, type RiskPolicy,
+  type ExtendedRiskMetrics, type PolicyMetricKey, type PolicyRule, type RiskPolicy,
 } from "@/lib/risk-policy";
 
 const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
@@ -49,19 +54,41 @@ export default function AdminRiskRules() {
   const [saved, setSaved] = useState<RiskPolicy>(() => loadPolicy());
   const [buyerId, setBuyerId] = useState(SIM_BUYERS[1].id);
   const [overrides, setOverrides] = useState<Partial<Record<PolicyMetricKey, number>>>({});
+  const [report, setReport] = useState<BureauReport | undefined>(() => cachedReport(SIM_BUYERS[1].id));
+  const [pulling, setPulling] = useState(false);
 
   const buyer = SIM_BUYERS.find((b) => b.id === buyerId)!;
   const profile = useMemo(() => mockProfile(buyer.id, buyer.trustScore), [buyer]);
   const baseMetrics = useMemo(() => mockBuyerRiskMetrics(profile), [profile]);
 
-  const metrics: BuyerRiskMetrics = useMemo(() => {
-    const m = { ...baseMetrics } as Record<string, number | boolean>;
+  const metrics: ExtendedRiskMetrics = useMemo(() => {
+    const m = {
+      ...baseMetrics,
+      ...(report ? toBureauMetrics(report) : {}),
+    } as Record<string, number | boolean>;
     for (const [k, v] of Object.entries(overrides)) {
       if (v === undefined) continue;
       m[k] = k === "gstinReverifyFailed" ? v === 1 : v;
     }
-    return m as unknown as BuyerRiskMetrics;
-  }, [baseMetrics, overrides]);
+    return m as unknown as ExtendedRiskMetrics;
+  }, [baseMetrics, report, overrides]);
+
+  const pullBureau = async () => {
+    setPulling(true);
+    try {
+      const r = await fetchBureauReport({ buyerId: buyer.id, legalName: buyer.name });
+      setReport(r);
+      toast.success("External signals pulled", {
+        description: r.provider === "live"
+          ? "Live bureau and fraud consortium data applied to the simulation."
+          : "Sandbox bureau data applied — connect a provider key for live files.",
+      });
+    } catch (e) {
+      toast.error("Could not fetch external signals", { description: (e as Error).message });
+    } finally {
+      setPulling(false);
+    }
+  };
 
   const limit = profile.approvedLimit;
   const before = useMemo(() => evaluateWithPolicy(buyer.id, metrics, limit, saved), [buyer, metrics, limit, saved]);
@@ -85,8 +112,8 @@ export default function AdminRiskRules() {
 
   const overriddenMetrics = useMemo(() => {
     const keys = [...new Set(draft.rules.map((r) => r.metric))];
-    return keys;
-  }, [draft]);
+    return keys.filter((k) => metricValue(metrics, k) !== undefined);
+  }, [draft, metrics]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -110,7 +137,7 @@ export default function AdminRiskRules() {
               <CardDescription className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> Simulating for</CardDescription>
             </CardHeader>
             <CardContent>
-              <Select value={buyerId} onValueChange={(v) => { setBuyerId(v); setOverrides({}); }}>
+              <Select value={buyerId} onValueChange={(v) => { setBuyerId(v); setOverrides({}); setReport(cachedReport(v)); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {SIM_BUYERS.map((b) => (
@@ -197,6 +224,7 @@ export default function AdminRiskRules() {
                     {rules.map((r) => {
                       const fired = after.firedRuleIds.includes(r.ruleId);
                       const observed = metricValue(metrics, r.metric);
+                      const noData = observed === undefined;
                       return (
                         <div key={r.ruleId} className={`rounded-lg border p-4 ${fired ? "border-destructive/40 bg-destructive/5" : ""}`}>
                           <div className="flex items-start justify-between gap-3">
@@ -206,9 +234,11 @@ export default function AdminRiskRules() {
                                 <Badge variant="outline" className="text-xs">{r.ruleId}</Badge>
                                 <Badge variant="outline" className={`text-xs ${buyerRiskTone(r.severity)}`}>{r.severity}</Badge>
                                 {fired && <Badge variant="outline" className="text-xs bg-destructive/15 text-destructive border-destructive/30">Firing now</Badge>}
+                                {r.requiresBureau && <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">External data</Badge>}
+                                {noData && <Badge variant="outline" className="text-xs">Awaiting bureau pull</Badge>}
                               </div>
                               <p className="text-xs text-muted-foreground mt-1">
-                                {METRIC_LABEL[r.metric]} · observed {unitSuffix(METRIC_INPUT[r.metric].unit, observed)}
+                                {METRIC_LABEL[r.metric]} · observed {noData ? "—" : unitSuffix(METRIC_INPUT[r.metric].unit, observed!)}
                                 {r.suppressedBy ? ` · skipped when ${r.suppressedBy} fires` : ""}
                               </p>
                             </div>
@@ -273,13 +303,69 @@ export default function AdminRiskRules() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2"><Database className="h-4 w-4" /> External bureau &amp; fraud signals</CardTitle>
+                <CardDescription>
+                  Commercial bureau file, GST compliance feed and shared fraud consortium for {buyer.name}.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button size="sm" onClick={pullBureau} disabled={pulling}>
+                    {pulling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                    {report ? "Refresh signals" : "Pull external signals"}
+                  </Button>
+                  {report && (
+                    <>
+                      <Badge variant="outline" className={SCORE_BAND_TONE[report.bureau.scoreBand]}>
+                        Score {report.bureau.commercialScore}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {report.provider === "live" ? "Live provider" : "Sandbox data"}
+                      </Badge>
+                    </>
+                  )}
+                </div>
+
+                {!report && (
+                  <p className="text-sm text-muted-foreground">
+                    No external file loaded — the {draft.rules.filter((r) => r.requiresBureau).length} bureau
+                    and fraud rules stay dormant until you pull one.
+                  </p>
+                )}
+
+                {report && (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Pulled {new Date(report.fetchedAt).toLocaleString("en-IN")} · vintage {report.entity.vintageMonths} months
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {bureauHighlights(report).map((h) => (
+                        <div key={h.label} className="rounded-md border p-2">
+                          <div className="text-[11px] text-muted-foreground">{h.label}</div>
+                          <div className={`text-sm font-medium ${h.bad ? "text-destructive" : ""}`}>{h.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {after.skippedNoData.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {after.skippedNoData.length} rule(s) skipped for missing external data.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle className="text-lg">Buyer inputs</CardTitle>
                 <CardDescription>Override observed metrics to stress-test the policy.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {overriddenMetrics.map((key) => {
                   const cfg = METRIC_INPUT[key];
-                  const value = metricValue(metrics, key);
+                  const value = metricValue(metrics, key) ?? cfg.min;
                   const isOverride = overrides[key] !== undefined;
                   return (
                     <div key={key}>
