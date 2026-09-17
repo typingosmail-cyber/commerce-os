@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Link as RouterLink } from "react-router-dom";
+import { cachedReport, toBureauMetrics } from "@/lib/bureau-signals";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -71,7 +72,13 @@ export default function BuyerCredit() {
   const auditTrail = useMemo(() => generateAuditTrail(profile), [profile]);
   const risk = useMemo(() => {
     const metrics = mockBuyerRiskMetrics(profile);
-    return evaluateBuyerRisk(profile.buyerId, metrics, profile.approvedLimit);
+    const report = cachedReport(profile.buyerId);
+    return evaluateBuyerRisk(
+      profile.buyerId,
+      metrics,
+      profile.approvedLimit,
+      report ? toBureauMetrics(report) : undefined,
+    );
   }, [profile]);
 
   // Auto-run autopay on mount for any next-due installments whose scheduled
