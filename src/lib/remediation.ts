@@ -52,7 +52,7 @@ export const KIND_META: Record<RemediationKind, { label: string; hint: string }>
 };
 
 export const STATUS_META: Record<RemediationStatus, { label: string; tone: string }> = {
-  open: { label: "Action needed", tone: "bg-yellow-500/15 text-yellow-700 border-yellow-500/30" },
+  open: { label: "Action needed", tone: "bg-muted text-foreground border-border" },
   in_review: { label: "With risk desk", tone: "bg-primary/10 text-primary border-primary/30" },
   approved: { label: "Accepted — signal cleared", tone: "bg-success/10 text-success border-success/30" },
   rejected: { label: "Not accepted", tone: "bg-destructive/15 text-destructive border-destructive/30" },
@@ -309,7 +309,7 @@ export function clearRemediation(buyerId: string) {
 
 export const DRAWDOWN_STATUS_META: Record<DrawdownAttempt["status"], { label: string; tone: string }> = {
   blocked: { label: "Blocked", tone: "bg-destructive/15 text-destructive border-destructive/30" },
-  awaiting_remediation: { label: "Awaiting remediation", tone: "bg-yellow-500/15 text-yellow-700 border-yellow-500/30" },
+  awaiting_remediation: { label: "Awaiting remediation", tone: "bg-muted text-foreground border-border" },
   approved: { label: "Approved on retry", tone: "bg-success/10 text-success border-success/30" },
   declined: { label: "Declined", tone: "bg-destructive/15 text-destructive border-destructive/30" },
 };
