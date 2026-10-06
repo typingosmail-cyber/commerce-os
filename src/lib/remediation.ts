@@ -167,9 +167,8 @@ export function submitTask(
 export function reviewTask(buyerId: string, taskId: string): RemediationTask[] {
   const tasks = loadTasks(buyerId).map((t) => {
     if (t.id !== taskId || t.status !== "in_review") return t;
-    const hasFile = t.evidence.some((e) => e.kind === "file" || e.kind === "reference");
-    const needsProof = t.kind === "settlement" || t.kind === "reverification";
-    const accepted = t.evidence.length > 0 && (!needsProof || hasFile);
+    const hasProof = t.evidence.some((e) => e.kind === "file" || e.kind === "reference");
+    const accepted = hasProof;
     return {
       ...t,
       status: (accepted ? "approved" : "rejected") as RemediationStatus,
@@ -246,20 +245,22 @@ function writeDrawdowns(buyerId: string, list: DrawdownAttempt[]) {
 
 export function recordBlockedDrawdown(
   buyerId: string,
-  input: { amount: number; tenureDays: 30 | 60 | 90; supplierName: string; orderRef: string },
+  input: { amount: number; tenureDays: 30 | 60 | 90; supplierName: string; orderRef: string; reason?: string },
   assessment: BuyerRiskAssessment,
 ): DrawdownAttempt[] {
+  const { reason: suppliedReason, ...drawdown } = input;
   const attempt: DrawdownAttempt = {
     id: uid("dd"),
-    ...input,
+    ...drawdown,
     requestedAt: new Date().toISOString(),
     status: "blocked",
-    reason:
+    reason: suppliedReason ?? (
       assessment.action === "block"
         ? "Account blocked from new drawdowns by risk rules."
         : assessment.action === "freeze_new"
           ? "New drawdowns frozen while risk signals are open."
-          : `Requested amount exceeds the available limit of ₹${assessment.effectiveLimit.toLocaleString("en-IN")}.`,
+          : `Requested amount exceeds the available limit of ₹${assessment.effectiveLimit.toLocaleString("en-IN")}.`
+    ),
     blockingSignalIds: assessment.signals.filter((s) => s.action !== "monitor").map((s) => s.id),
   };
   const list = [attempt, ...loadDrawdowns(buyerId)].slice(0, 50);
@@ -271,20 +272,21 @@ export function retryDrawdown(
   buyerId: string,
   attemptId: string,
   assessment: BuyerRiskAssessment,
+  availableCredit: number,
 ): { list: DrawdownAttempt[]; approved: boolean; note: string } {
   const list = loadDrawdowns(buyerId);
   const attempt = list.find((a) => a.id === attemptId);
   if (!attempt) return { list, approved: false, note: "Request not found." };
 
   const stillBlocked = assessment.action === "block" || assessment.action === "freeze_new";
-  const withinLimit = attempt.amount <= assessment.effectiveLimit;
+  const withinLimit = attempt.amount <= availableCredit;
   const approved = !stillBlocked && withinLimit;
 
   const note = approved
-    ? `Approved on retry — ₹${attempt.amount.toLocaleString("en-IN")} available against a re-evaluated limit of ₹${assessment.effectiveLimit.toLocaleString("en-IN")}.`
+    ? `Approved on retry — ₹${attempt.amount.toLocaleString("en-IN")} fits the re-evaluated available credit of ₹${availableCredit.toLocaleString("en-IN")}.`
     : stillBlocked
       ? "Still held — open risk signals must be cleared first."
-      : `Available limit is ₹${assessment.effectiveLimit.toLocaleString("en-IN")}; reduce the amount or clear more signals.`;
+      : `Available credit is ₹${availableCredit.toLocaleString("en-IN")}; reduce the amount or clear more signals.`;
 
   const next = list.map((a) =>
     a.id === attemptId
